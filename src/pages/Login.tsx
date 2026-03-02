@@ -78,9 +78,25 @@ const Login = () => {
               variant="outline"
               size="sm"
               className="w-full mt-2"
-              onClick={() => { setEmail("gestor@trioteca.test"); setPassword("gestor123"); }}
+              onClick={async () => {
+                setLoading(true);
+                try {
+                  // Try signup first (ignore if already exists)
+                  await signUp("gestor@trioteca.test", "gestor123");
+                  // Then sign in
+                  const { error } = await signIn("gestor@trioteca.test", "gestor123");
+                  if (error) throw error;
+                  toast.success("Sesión iniciada");
+                  navigate("/admin");
+                } catch (err: any) {
+                  toast.error(err.message || "Error al acceder");
+                } finally {
+                  setLoading(false);
+                }
+              }}
+              disabled={loading}
             >
-              Rellenar credenciales
+              {loading ? "Accediendo..." : "Acceder con credenciales de prueba"}
             </Button>
           </div>
         </CardContent>
