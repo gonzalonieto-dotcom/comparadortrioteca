@@ -6,7 +6,8 @@ import {
   saveLinkages, saveMixedPeriods, type DbOperation,
 } from "@/hooks/useOperation";
 import { supabase } from "@/integrations/supabase/client";
-import OfferEditor, { type OfferFormData } from "@/components/admin/OfferEditor";
+import OfferEditor, { type OfferFormData, BANK_PRESETS } from "@/components/admin/OfferEditor";
+import { PRESET_LINKAGES } from "@/components/admin/LinkageEditor";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -25,6 +26,7 @@ const OperationEditor = () => {
   const navigate = useNavigate();
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [euriborRate, setEuriborRate] = useState<number | null>(null);
 
   const [op, setOp] = useState({
     purchase_price: 0, appraisal_value: 0, loan_amount: 0, term_years: 30,
@@ -41,6 +43,21 @@ const OperationEditor = () => {
   useEffect(() => {
     if (user && id) loadData();
   }, [user, id]);
+
+  // Fetch Euribor on mount
+  useEffect(() => {
+    const fetchEuribor = async () => {
+      try {
+        const { data, error } = await supabase.functions.invoke("fetch-euribor");
+        if (!error && data?.success && typeof data.euribor === "number") {
+          setEuriborRate(data.euribor);
+        }
+      } catch (e) {
+        console.warn("Could not fetch Euribor:", e);
+      }
+    };
+    fetchEuribor();
+  }, []);
 
   const loadData = async () => {
     try {
@@ -110,7 +127,8 @@ const OperationEditor = () => {
         }
       }
 
-      for (const offer of offers) {
+      for (let i = 0; i < offers.length; i++) {
+        const offer = offers[i];
         const saved = await upsertOffer({
           ...(offer.id ? { id: offer.id } : {}),
           operation_id: id!,
@@ -126,7 +144,7 @@ const OperationEditor = () => {
           euribor_rate: offer.euribor_rate,
           advantages: offer.advantages,
           considerations: offer.considerations,
-          sort_order: offer.sort_order,
+          sort_order: i,
         });
         await saveLinkages(saved.id, offer.linkages);
         await saveMixedPeriods(saved.id, offer.mixedPeriods);
@@ -146,12 +164,19 @@ const OperationEditor = () => {
       toast.error(`Máximo ${MAX_OFFERS} ofertas por comparativa`);
       return;
     }
+    const defaultLinkages = PRESET_LINKAGES.map((label) => ({
+      label,
+      is_active_default: true,
+      discount_weight_pct: 0,
+      annual_cost: 0,
+    }));
     setOffers((prev) => [...prev, {
       bank_name: "", logo_color: "hsl(200, 70%, 50%)", type: "Fijo",
       base_tin: 0, estimated_tae: 0, monthly_payment: 0,
       amortization_fee_pct: 0, upfront_costs: 0, monthly_account_cost: 0,
-      euribor_rate: null, advantages: [], considerations: [], sort_order: prev.length,
-      linkages: [], mixedPeriods: [],
+      euribor_rate: euriborRate, advantages: [], considerations: [],
+      sort_order: prev.length,
+      linkages: defaultLinkages, mixedPeriods: [],
     }]);
   };
 
@@ -230,6 +255,8 @@ const OperationEditor = () => {
             index={i}
             onChange={(updated) => setOffers((prev) => prev.map((o, idx) => idx === i ? updated : o))}
             onDelete={() => setOffers((prev) => prev.filter((_, idx) => idx !== i))}
+            loanAmount={op.loan_amount}
+            termYears={op.term_years}
           />
         ))}
 

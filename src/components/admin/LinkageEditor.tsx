@@ -1,8 +1,6 @@
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { Plus, Trash2 } from "lucide-react";
 
 export interface LinkageFormData {
   label: string;
@@ -11,33 +9,35 @@ export interface LinkageFormData {
   annual_cost: number;
 }
 
+export const PRESET_LINKAGES = [
+  "Domiciliación de nómina",
+  "Seguro hogar",
+  "Seguro de vida",
+];
+
 interface Props {
   linkages: LinkageFormData[];
   onChange: (linkages: LinkageFormData[]) => void;
 }
 
 const LinkageEditor = ({ linkages, onChange }: Props) => {
-  const add = () =>
-    onChange([...linkages, { label: "", is_active_default: true, discount_weight_pct: 0, annual_cost: 0 }]);
+  // Ensure we always have exactly 3 preset linkages
+  const normalized: LinkageFormData[] = PRESET_LINKAGES.map((label) => {
+    const existing = linkages.find((l) => l.label === label);
+    return existing ?? { label, is_active_default: true, discount_weight_pct: 0, annual_cost: 0 };
+  });
 
   const update = (i: number, patch: Partial<LinkageFormData>) =>
-    onChange(linkages.map((l, idx) => (idx === i ? { ...l, ...patch } : l)));
-
-  const remove = (i: number) => onChange(linkages.filter((_, idx) => idx !== i));
+    onChange(normalized.map((l, idx) => (idx === i ? { ...l, ...patch } : l)));
 
   return (
     <div className="space-y-3">
-      <div className="flex items-center justify-between">
-        <Label className="text-sm font-medium">Vinculaciones / Bonificaciones</Label>
-        <Button type="button" variant="outline" size="sm" onClick={add}>
-          <Plus className="h-3 w-3 mr-1" />Añadir
-        </Button>
-      </div>
-      {linkages.map((l, i) => (
-        <div key={i} className="grid grid-cols-[1fr_auto_80px_80px_auto] gap-2 items-end border rounded-lg p-3">
+      <Label className="text-sm font-medium">Vinculaciones / Bonificaciones</Label>
+      {normalized.map((l, i) => (
+        <div key={l.label} className="grid grid-cols-[1fr_auto_80px_80px] gap-2 items-end border rounded-lg p-3">
           <div>
-            <Label className="text-xs">Nombre</Label>
-            <Input value={l.label} onChange={(e) => update(i, { label: e.target.value })} placeholder="Ej: Nómina" />
+            <Label className="text-xs">Producto</Label>
+            <p className="text-sm font-medium mt-1">{l.label}</p>
           </div>
           <div className="flex flex-col items-center">
             <Label className="text-xs mb-1">Activa</Label>
@@ -51,9 +51,6 @@ const LinkageEditor = ({ linkages, onChange }: Props) => {
             <Label className="text-xs">Coste €/año</Label>
             <Input type="number" step="0.01" value={l.annual_cost} onChange={(e) => update(i, { annual_cost: +e.target.value })} />
           </div>
-          <Button type="button" variant="ghost" size="sm" onClick={() => remove(i)}>
-            <Trash2 className="h-4 w-4 text-destructive" />
-          </Button>
         </div>
       ))}
     </div>
