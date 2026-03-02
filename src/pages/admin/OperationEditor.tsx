@@ -63,6 +63,8 @@ const OperationEditor = () => {
         logo_color: o.logo_color,
         type: o.type,
         base_tin: o.base_tin,
+        estimated_tae: o.estimated_tae,
+        monthly_payment: o.monthly_payment,
         amortization_fee_pct: o.amortization_fee_pct,
         upfront_costs: o.upfront_costs,
         monthly_account_cost: o.monthly_account_cost,
@@ -114,6 +116,8 @@ const OperationEditor = () => {
           logo_color: offer.logo_color,
           type: offer.type,
           base_tin: offer.base_tin,
+          estimated_tae: offer.estimated_tae,
+          monthly_payment: offer.monthly_payment,
           amortization_fee_pct: offer.amortization_fee_pct,
           upfront_costs: offer.upfront_costs,
           monthly_account_cost: offer.monthly_account_cost,
@@ -138,7 +142,8 @@ const OperationEditor = () => {
   const addOffer = () => {
     setOffers((prev) => [...prev, {
       bank_name: "", logo_color: "hsl(200, 70%, 50%)", type: "Fijo",
-      base_tin: 0, amortization_fee_pct: 0, upfront_costs: 0, monthly_account_cost: 0,
+      base_tin: 0, estimated_tae: 0, monthly_payment: 0,
+      amortization_fee_pct: 0, upfront_costs: 0, monthly_account_cost: 0,
       euribor_rate: null, advantages: [], considerations: [], sort_order: prev.length,
       linkages: [], mixedPeriods: [],
     }]);

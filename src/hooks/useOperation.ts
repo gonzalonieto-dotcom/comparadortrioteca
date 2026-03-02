@@ -23,6 +23,8 @@ export interface DbOffer {
   logo_color: string;
   type: string;
   base_tin: number;
+  estimated_tae: number;
+  monthly_payment: number;
   amortization_fee_pct: number;
   upfront_costs: number;
   monthly_account_cost: number;
