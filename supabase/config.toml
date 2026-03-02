@@ -1,1 +1,4 @@
 project_id = "cnlpnazvbyjnaecpsbsq"
+
+[functions.fetch-euribor]
+verify_jwt = false
