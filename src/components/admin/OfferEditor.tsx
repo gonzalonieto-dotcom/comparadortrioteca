@@ -1,14 +1,15 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { Trash2, ChevronDown, ChevronUp } from "lucide-react";
+import { Trash2, ChevronDown, ChevronUp, Calculator } from "lucide-react";
 import LinkageEditor, { type LinkageFormData, PRESET_LINKAGES } from "./LinkageEditor";
 import MixedPeriodEditor, { type MixedPeriodFormData } from "./MixedPeriodEditor";
-
+import type { Offer, OperationDefaults, Linkage, MixedRatePeriod } from "@/data/mortgageData";
+import { calcMonthlyPayment, calcEstimatedTAE, generateAmortizationSchedule, calcBonifiedTIN } from "@/lib/mortgageCalc";
 export const BANK_PRESETS: Record<string, { color: string }> = {
   CaixaBank: { color: "hsl(200, 70%, 40%)" },
   Ibercaja: { color: "hsl(340, 75%, 45%)" },
@@ -43,9 +44,51 @@ interface Props {
   onDelete: () => void;
   loanAmount?: number;
   termYears?: number;
+  appraisalCost?: number;
 }
 
-const OfferEditor = ({ offer, index, onChange, onDelete, loanAmount, termYears }: Props) => {
+/** Convert form data to the calc engine's Offer type */
+function toCalcOffer(f: OfferFormData): Offer {
+  const linkages: Linkage[] = f.linkages.map((l, i) => ({
+    id: `link-${i}`,
+    label: l.label,
+    isActive: l.is_active_default,
+    discountWeightPct: l.discount_weight_pct,
+    annualCostEUR: l.annual_cost,
+  }));
+  const mixedPeriods: MixedRatePeriod[] | undefined = f.mixedPeriods.length > 0
+    ? f.mixedPeriods.map((m) => ({
+        fromYear: m.from_year,
+        toYear: m.to_year,
+        fixedTIN: m.fixed_tin ?? undefined,
+        spreadOverEuribor: m.spread_over_euribor ?? undefined,
+      }))
+    : undefined;
+
+  // baseTIN in form is the bonified TIN. The calc engine expects baseTIN as
+  // the NON-bonified rate (baseTIN = bonifiedTIN + sum of linkage discounts).
+  const totalDiscount = linkages
+    .filter((l) => l.isActive)
+    .reduce((s, l) => s + l.discountWeightPct, 0);
+
+  return {
+    id: f.id || "temp",
+    bankName: f.bank_name,
+    logoColor: f.logo_color,
+    type: f.type as Offer["type"],
+    baseTIN: f.base_tin + totalDiscount, // engine subtracts discounts to get bonified
+    amortizationFeePct: f.amortization_fee_pct,
+    upfrontCostsEUR: f.upfront_costs,
+    monthlyAccountCostEUR: f.monthly_account_cost,
+    linkages,
+    advantages: f.advantages,
+    considerations: f.considerations,
+    mixedPeriods,
+    euriborRate: f.euribor_rate ?? undefined,
+  };
+}
+
+const OfferEditor = ({ offer, index, onChange, onDelete, loanAmount, termYears, appraisalCost }: Props) => {
   const [expanded, setExpanded] = useState(true);
 
   const update = (patch: Partial<OfferFormData>) => onChange({ ...offer, ...patch });
@@ -55,7 +98,32 @@ const OfferEditor = ({ offer, index, onChange, onDelete, loanAmount, termYears }
     update({ bank_name: bankName, logo_color: preset?.color || offer.logo_color });
   };
 
-  const showAutoHint = (value: number) => value === 0;
+  // ─── Auto-computed TAE & payment ───
+  const { computedTAE, computedPayment } = useMemo(() => {
+    const loan = loanAmount || 200000;
+    const years = termYears || 30;
+    const termMonths = years * 12;
+    const appraisal = appraisalCost || 0;
+
+    const calcOffer = toCalcOffer(offer);
+    const bonifiedTIN = calcBonifiedTIN(calcOffer);
+
+    const defaults: OperationDefaults = {
+      purchasePrice: loan,
+      appraisalValue: loan,
+      loanAmount: loan,
+      termYears: years,
+      homeInsuranceAnnualDefault: 0,
+      lifeInsuranceAnnualDefault: 0,
+      appraisalCostEUR: appraisal,
+    };
+
+    const schedule = generateAmortizationSchedule(loan, bonifiedTIN, termMonths, calcOffer);
+    const payment = schedule[0]?.payment ?? calcMonthlyPayment(loan, bonifiedTIN, termMonths);
+    const tae = calcEstimatedTAE(calcOffer, defaults, schedule);
+
+    return { computedTAE: tae, computedPayment: payment };
+  }, [offer, loanAmount, termYears, appraisalCost]);
 
   return (
     <div className="space-y-4">
@@ -115,12 +183,28 @@ const OfferEditor = ({ offer, index, onChange, onDelete, loanAmount, termYears }
                 <Input type="number" step="0.01" value={offer.base_tin} onChange={(e) => update({ base_tin: +e.target.value })} />
               </div>
               <div>
-                <Label className="text-xs">TAE estimada % {showAutoHint(offer.estimated_tae) && <span className="text-muted-foreground">(auto)</span>}</Label>
-                <Input type="number" step="0.01" value={offer.estimated_tae} onChange={(e) => update({ estimated_tae: +e.target.value })} />
+                <Label className="text-xs flex items-center gap-1">
+                  TAE estimada %
+                  <Calculator className="h-3 w-3 text-muted-foreground" />
+                  <span className="text-muted-foreground">(auto)</span>
+                </Label>
+                <Input
+                  readOnly
+                  value={isFinite(computedTAE) ? computedTAE.toFixed(2) + " %" : "—"}
+                  className="bg-muted cursor-default"
+                />
               </div>
               <div>
-                <Label className="text-xs">Cuota mensual € {showAutoHint(offer.monthly_payment) && <span className="text-muted-foreground">(auto)</span>}</Label>
-                <Input type="number" step="0.01" value={offer.monthly_payment} onChange={(e) => update({ monthly_payment: +e.target.value })} />
+                <Label className="text-xs flex items-center gap-1">
+                  Cuota mensual €
+                  <Calculator className="h-3 w-3 text-muted-foreground" />
+                  <span className="text-muted-foreground">(auto)</span>
+                </Label>
+                <Input
+                  readOnly
+                  value={isFinite(computedPayment) ? computedPayment.toFixed(2) + " €" : "—"}
+                  className="bg-muted cursor-default"
+                />
               </div>
             </div>
 
