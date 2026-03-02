@@ -1,74 +1,41 @@
 
+# Fix: Crear usuario de prueba y corregir acceso
 
-# Fix: Políticas RLS y Usuarios de Prueba
+## Problema
 
-## Problema detectado
+1. **El usuario `gestor@trioteca.test` no existe** -- se mostraron credenciales de prueba pero nunca se creó la cuenta. El login falla con "Invalid login credentials".
+2. **Las políticas RLS siguen siendo RESTRICTIVE** -- la migración anterior creó políticas nuevas pero con nombres que coincidían parcialmente, y el resultado es que siguen bloqueando el acceso.
 
-Las políticas de seguridad (RLS) de las 4 tablas están creadas como **RESTRICTIVE** en lugar de **PERMISSIVE**. En modo restrictivo, TODAS las políticas deben cumplirse a la vez. Esto significa que un usuario anónimo que accede via `/op/:token` falla porque la política de "gestores autenticados" también se evalúa y bloquea el acceso. De ahí el error de "token de validación".
+## Solución
 
-## Plan de corrección
+### 1. Migración SQL: Recrear todas las políticas como PERMISSIVE
 
-### 1. Migración SQL: Corregir las políticas RLS
+Eliminar TODAS las políticas existentes (tanto las originales como las nuevas) y recrearlas explícitamente como PERMISSIVE. En PostgreSQL, `CREATE POLICY` es PERMISSIVE por defecto, pero vamos a ser explícitos para evitar ambiguedad.
 
-Eliminar las 8 políticas actuales (2 por tabla) y recrearlas como **PERMISSIVE** (el comportamiento por defecto de Postgres, donde basta con que UNA política permita el acceso).
+Las políticas a crear:
+- `operations`: SELECT publico (con share_token IS NOT NULL), ALL para el gestor autenticado dueño
+- `offers`: SELECT publico, ALL para el gestor dueño
+- `offer_linkages`: SELECT publico, ALL para el gestor dueño  
+- `offer_mixed_periods`: SELECT publico, ALL para el gestor dueño
 
-Además, la política de lectura pública en `operations` debe filtrarse por `share_token IS NOT NULL` para que solo se lean operaciones compartidas.
+### 2. Mejorar la página de Login
 
-Tablas afectadas:
-- `operations`: SELECT público (con filtro share_token), ALL para el gestor dueño
-- `offers`: SELECT público (si la operación tiene share_token), ALL para el gestor dueño
-- `offer_linkages`: SELECT público, ALL para el gestor dueño
-- `offer_mixed_periods`: SELECT público, ALL para el gestor dueño
+Modificar `src/pages/Login.tsx` para que el botón "Rellenar credenciales" primero intente registrar al usuario de prueba (signUp) y luego haga login automáticamente. Esto elimina la confusión de tener que registrarse manualmente.
 
-### 2. Crear usuarios de prueba
+Flujo del botón:
+1. Rellena email y password
+2. Intenta signUp (si ya existe, ignora el error)
+3. Intenta signIn
+4. Si funciona, navega a /admin
 
-Ya que la autenticación requiere verificación de email, vamos a **habilitar auto-confirm temporalmente** para poder crear los usuarios de prueba, y luego los crearemos desde el código:
+### 3. No se necesitan cambios en el panel admin
 
-- **Gestor**: `gestor@trioteca.test` / password: `gestor123`
-- **Cliente**: El cliente NO necesita cuenta -- accede via link `/op/:token` sin autenticación
+El panel ya existe en:
+- `/admin` -- Lista de operaciones (crear, editar, eliminar, copiar link)
+- `/admin/operations/:id` -- Editor completo con datos de operación, ofertas, vinculaciones y periodos mixtos
 
-Nota: El "cliente" no necesita usuario porque accede via token público. El comparador en `/` usa datos demo y en `/op/:token` carga datos de la BD sin login.
-
-### 3. Crear una seed de datos de prueba
-
-Añadir un botón o script para que el gestor pueda crear una operación de ejemplo con ofertas precargadas, facilitando las pruebas.
-
-## Detalle técnico
-
-### Migración SQL
-
-```sql
--- Drop all RESTRICTIVE policies and recreate as PERMISSIVE
-
--- operations
-DROP POLICY IF EXISTS "Public read via share_token" ON public.operations;
-DROP POLICY IF EXISTS "Users can manage own operations" ON public.operations;
-
-CREATE POLICY "Public read via share_token" ON public.operations
-  FOR SELECT USING (share_token IS NOT NULL);
-
-CREATE POLICY "Users can manage own operations" ON public.operations
-  FOR ALL TO authenticated
-  USING (created_by = auth.uid())
-  WITH CHECK (created_by = auth.uid());
-
--- offers
-DROP POLICY IF EXISTS "Public read offers via operation" ON public.offers;
-DROP POLICY IF EXISTS "Users can manage offers of own operations" ON public.offers;
-
-CREATE POLICY "Public read offers via operation" ON public.offers
-  FOR SELECT USING (true);
-
-CREATE POLICY "Users can manage offers of own operations" ON public.offers
-  FOR ALL TO authenticated
-  USING (operation_id IN (SELECT id FROM operations WHERE created_by = auth.uid()))
-  WITH CHECK (operation_id IN (SELECT id FROM operations WHERE created_by = auth.uid()));
-
--- offer_linkages (same pattern)
--- offer_mixed_periods (same pattern)
-```
+## Detalle tecnico
 
 ### Ficheros modificados
-
-- **Sin cambios de código** -- solo migración SQL para arreglar las políticas RLS
-- Opcional: pequeño ajuste en `Login.tsx` para mostrar credenciales de prueba en desarrollo
+- Nueva migración SQL para limpiar y recrear las 8 políticas RLS
+- `src/pages/Login.tsx` -- Botón de credenciales de prueba con auto-registro + login
