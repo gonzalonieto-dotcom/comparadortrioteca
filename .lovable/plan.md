@@ -1,99 +1,71 @@
 
 
-# Rediseno del editor de ofertas bancarias
+# TAE auto-calculada con logica financiera completa (IRR)
 
 ## Resumen
 
-Reorganizar el formulario de creacion/edicion de ofertas para simplificar el flujo del gestor: bancos preseleccionados con colores predefinidos, vinculaciones fijas, campos auto-calculados, Euribor automatico desde Expansion, y mejor organizacion visual.
+Convertir el campo TAE en el editor de ofertas a solo lectura, calculandose automaticamente en tiempo real usando la logica financiera existente (calculo IRR por biseccion). El mismo motor de calculo se usa tanto en el editor admin como en la vista del cliente, garantizando coherencia total.
 
-## Cambios principales
+## Que cambia para el gestor
 
-### 1. Banco como selector predefinido (no texto libre)
-- Reemplazar el input de texto "Banco" por un `Select` con opciones fijas:
-  - CaixaBank - `hsl(200, 70%, 40%)`
-  - Ibercaja - `hsl(340, 75%, 45%)`
-  - BBVA - `hsl(210, 80%, 45%)`
-  - Kutxabank - `hsl(145, 60%, 40%)`
-  - Bankinter - `hsl(25, 90%, 50%)`
-- Al seleccionar un banco, el color se asigna automaticamente (campo oculto)
-- El campo "Color (HSL)" desaparece del formulario
+- El campo "TAE estimada %" deja de ser editable y se muestra como valor calculado en tiempo real
+- Al cambiar TIN, bonificaciones, gastos iniciales, coste de cuenta, o cualquier dato financiero, la TAE se recalcula instantaneamente
+- La cuota mensual tambien se auto-calcula si se deja en 0 (ya implementado como hint, ahora se mostrara el valor real)
+- Todo usa la misma formula IRR (Tasa Interna de Retorno) que es el estandar del Banco de Espana para calcular TAE
 
-### 2. Campo "Orden" oculto
-- Eliminar el input de orden del formulario
-- El `sort_order` se asignara automaticamente segun el indice en el array
+## Como funciona el calculo
 
-### 3. TAE y Cuota con auto-calculo
-- Si TAE o cuota mensual quedan en 0, se calculan automaticamente usando la logica existente en `mortgageCalc.ts` (`calcEstimatedTAE`, `calcMonthlyPayment`)
-- Los campos siguen siendo editables para override manual
-- Se mostrara un texto "(auto)" junto al label cuando el valor es 0 o esta vacio
-
-### 4. Euribor automatico desde Expansion
-- Crear una edge function `fetch-euribor` que hace scraping de la pagina de Expansion para obtener la ultima cotizacion del Euribor
-- El campo Euribor se pre-rellena automaticamente al cargar el editor
-- Sigue siendo editable para override manual
-
-### 5. Ventajas y Consideraciones en tarjeta separada
-- Mover los textareas de ventajas y consideraciones a una segunda `Card` debajo de los datos financieros
-- Titulo: "Ventajas y Consideraciones"
-
-### 6. Vinculaciones predefinidas (no texto libre)
-- Reemplazar el sistema actual de "Anadir vinculacion libre" por 3 vinculaciones fijas:
-  - Domiciliacion de nomina
-  - Seguro hogar
-  - Seguro de vida
-- Cada una siempre aparece con su label fijo (no editable)
-- Los campos de peso (%) y coste (EUR/ano) siguen siendo inputs manuales
-- El switch de activa/inactiva se mantiene
-- Se elimina el boton de "Anadir" y "Eliminar" vinculacion
+La TAE se calcula mediante IRR (biseccion):
+1. Se genera el cuadro de amortizacion completo (sistema frances) con el TIN bonificado
+2. Se suman los costes mensuales adicionales (cuenta, vinculaciones) a cada cuota
+3. Se calcula la tasa mensual que iguala el valor presente de todos los flujos al importe neto recibido (prestamo - gastos iniciales - tasacion)
+4. Se anualiza: TAE = (1 + tasa_mensual)^12 - 1
 
 ## Detalle tecnico
 
-### Archivos a modificar
+### Archivo: `src/components/admin/OfferEditor.tsx`
 
-1. **`src/components/admin/OfferEditor.tsx`** - Cambios principales:
-   - Mapa de bancos con colores: `BANK_PRESETS`
-   - Select de banco en lugar de Input
-   - Ocultar campo color y orden
-   - Pasar datos de operacion para auto-calculo de TAE/cuota
+Cambios principales:
+- Importar `calcMonthlyPayment`, `calcEstimatedTAE`, `generateAmortizationSchedule` desde `mortgageCalc.ts`
+- Crear funcion helper `toCalcOffer()` que convierte `OfferFormData` al tipo `Offer` que usa el motor de calculo
+- Crear funcion helper `toCalcDefaults()` que construye `OperationDefaults` con `loanAmount` y `termYears` del props
+- Usar `useMemo` para calcular en tiempo real:
+  - `computedTAE`: resultado de `calcEstimatedTAE(offer, defaults, schedule)`
+  - `computedPayment`: resultado de `calcMonthlyPayment(loanAmount, bonifiedTIN, termMonths)`
+- Reemplazar el input TAE por un campo de solo lectura que muestra el valor calculado con formato `X.XX%`
+- La cuota mensual se muestra como auto-calculada si el usuario deja 0, mostrando el valor real calculado
 
-2. **`src/components/admin/LinkageEditor.tsx`** - Refactor completo:
-   - 3 filas fijas (nomina, seguro hogar, seguro vida)
-   - Sin botones de anadir/eliminar
-   - Label no editable, solo peso y coste editables
+### Archivo: `src/pages/admin/OperationEditor.tsx`
 
-3. **`src/pages/admin/OperationEditor.tsx`** - Ajustes menores:
-   - Pasar `loanAmount` y `termYears` al OfferEditor para auto-calculo
-   - Pre-cargar Euribor al montar el componente
+- Pasar `appraisalCost` al OfferEditor (necesario para el calculo TAE completo)
+- Al guardar, calcular y persistir la TAE y cuota automatica en la DB para que la vista cliente los tenga
 
-4. **`supabase/functions/fetch-euribor/index.ts`** - Nueva edge function:
-   - Hace fetch de la pagina de Expansion
-   - Extrae el valor actual del Euribor con regex
-   - Retorna `{ euribor: number }`
-
-### Constante de bancos predefinidos
+### Flujo de datos
 
 ```text
-BANK_PRESETS = {
-  "CaixaBank":  { color: "hsl(200, 70%, 40%)" },
-  "Ibercaja":   { color: "hsl(340, 75%, 45%)" },
-  "BBVA":       { color: "hsl(210, 80%, 45%)" },
-  "Kutxabank":  { color: "hsl(145, 60%, 40%)" },
-  "Bankinter":  { color: "hsl(25, 90%, 50%)" },
-}
+OfferEditor (admin)
+  |-- TIN, linkages, gastos --> toCalcOffer() --> Offer
+  |-- loanAmount, termYears --> toCalcDefaults() --> OperationDefaults
+  |-- calcMonthlyPayment() --> cuota mensual
+  |-- generateAmortizationSchedule() --> schedule
+  |-- calcEstimatedTAE(offer, defaults, schedule) --> TAE
+  |-- Valores mostrados en tiempo real (read-only)
+  |-- Al guardar: se persisten TAE y cuota calculados
+
+ClientComparison (cliente)
+  |-- Misma logica via computeOffer() --> coherencia total
 ```
 
-### Vinculaciones fijas
+### Mapeo de tipos OfferFormData a Offer
 
 ```text
-PRESET_LINKAGES = [
-  { label: "Domiciliacion de nomina" },
-  { label: "Seguro hogar" },
-  { label: "Seguro de vida" },
-]
+OfferFormData.base_tin        --> Offer.baseTIN
+OfferFormData.linkages[]      --> Offer.linkages[] (con isActive, discountWeightPct, annualCostEUR)
+OfferFormData.upfront_costs   --> Offer.upfrontCostsEUR
+OfferFormData.monthly_account_cost --> Offer.monthlyAccountCostEUR
+OfferFormData.euribor_rate    --> Offer.euriborRate
+OfferFormData.mixedPeriods    --> Offer.mixedPeriods
 ```
 
-### Edge function fetch-euribor
-- Hace fetch de `https://www.expansion.com/mercados/tipos-interes/euribor.html`
-- Extrae el valor numerico del Euribor con un patron regex
-- Cachea el resultado para no hacer multiples requests en la misma sesion
+Nota: El `baseTIN` en el formulario ya es el TIN bonificado (lo que ingresa el gestor). Las vinculaciones se usan para calcular el "TIN sin bonificar" que es baseTIN + suma de pesos. Asi la TAE refleja correctamente el coste real incluyendo las bonificaciones.
 
