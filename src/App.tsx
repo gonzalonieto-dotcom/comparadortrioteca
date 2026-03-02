@@ -2,15 +2,24 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
-import Index from "./pages/Index";
-import NotFound from "./pages/NotFound";
+import { BrowserRouter, Routes, Route, Navigate, useParams } from "react-router-dom";
 import Login from "./pages/Login";
 import Operations from "./pages/admin/Operations";
 import OperationEditor from "./pages/admin/OperationEditor";
-import SharedOperation from "./pages/SharedOperation";
+import ClientComparison from "./pages/ClientComparison";
+import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
+
+const RedirectOpToC = () => {
+  const { token } = useParams();
+  return <Navigate to={`/c/${token}`} replace />;
+};
+
+const RedirectOpsToEditor = () => {
+  const { id } = useParams();
+  return <Navigate to={`/admin/dashboard/${id}`} replace />;
+};
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
@@ -19,11 +28,16 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <Routes>
-          <Route path="/" element={<Index />} />
-          <Route path="/login" element={<Login />} />
-          <Route path="/admin" element={<Operations />} />
-          <Route path="/admin/operations/:id" element={<OperationEditor />} />
-          <Route path="/op/:token" element={<SharedOperation />} />
+          <Route path="/" element={<Navigate to="/admin/login" replace />} />
+          <Route path="/admin/login" element={<Login />} />
+          <Route path="/admin/dashboard" element={<Operations />} />
+          <Route path="/admin/dashboard/:id" element={<OperationEditor />} />
+          <Route path="/c/:token" element={<ClientComparison />} />
+          {/* Legacy routes */}
+          <Route path="/login" element={<Navigate to="/admin/login" replace />} />
+          <Route path="/admin" element={<Navigate to="/admin/dashboard" replace />} />
+          <Route path="/admin/operations/:id" element={<RedirectOpsToEditor />} />
+          <Route path="/op/:token" element={<RedirectOpToC />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>

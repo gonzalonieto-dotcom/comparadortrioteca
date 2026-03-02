@@ -13,6 +13,7 @@ export interface DbOperation {
   appraisal_cost: number;
   created_by: string;
   share_token: string;
+  is_published: boolean;
   created_at: string;
 }
 
@@ -142,7 +143,7 @@ export async function fetchMyOperations() {
   return data as DbOperation[];
 }
 
-export async function createOperation(op: Omit<DbOperation, "id" | "created_at" | "share_token" | "created_by">) {
+export async function createOperation(op: Omit<DbOperation, "id" | "created_at" | "share_token" | "created_by" | "is_published">) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error("No autenticado");
   const { data, error } = await supabase

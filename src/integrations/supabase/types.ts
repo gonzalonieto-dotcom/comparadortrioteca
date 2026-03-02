@@ -157,6 +157,7 @@ export type Database = {
           created_by: string
           home_insurance_annual: number
           id: string
+          is_published: boolean
           life_insurance_annual: number
           loan_amount: number
           purchase_price: number
@@ -170,6 +171,7 @@ export type Database = {
           created_by: string
           home_insurance_annual?: number
           id?: string
+          is_published?: boolean
           life_insurance_annual?: number
           loan_amount?: number
           purchase_price?: number
@@ -183,6 +185,7 @@ export type Database = {
           created_by?: string
           home_insurance_annual?: number
           id?: string
+          is_published?: boolean
           life_insurance_annual?: number
           loan_amount?: number
           purchase_price?: number
