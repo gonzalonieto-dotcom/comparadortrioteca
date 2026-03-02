@@ -81,9 +81,6 @@ const Login = () => {
               onClick={async () => {
                 setLoading(true);
                 try {
-                  // Try signup first (ignore if already exists)
-                  await signUp("gestor@trioteca.test", "gestor123");
-                  // Then sign in
                   const { error } = await signIn("gestor@trioteca.test", "gestor123");
                   if (error) throw error;
                   toast.success("Sesión iniciada");

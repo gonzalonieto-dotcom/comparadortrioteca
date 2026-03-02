@@ -15,6 +15,8 @@ export interface OfferFormData {
   logo_color: string;
   type: string;
   base_tin: number;
+  estimated_tae: number;
+  monthly_payment: number;
   amortization_fee_pct: number;
   upfront_costs: number;
   monthly_account_cost: number;
@@ -85,11 +87,22 @@ const OfferEditor = ({ offer, index, onChange, onDelete }: Props) => {
           </div>
 
           {/* Financial details */}
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
             <div>
-              <Label className="text-xs">TIN base %</Label>
+              <Label className="text-xs">TIN bonificado %</Label>
               <Input type="number" step="0.01" value={offer.base_tin} onChange={(e) => update({ base_tin: +e.target.value })} />
             </div>
+            <div>
+              <Label className="text-xs">TAE estimada %</Label>
+              <Input type="number" step="0.01" value={offer.estimated_tae} onChange={(e) => update({ estimated_tae: +e.target.value })} />
+            </div>
+            <div>
+              <Label className="text-xs">Cuota mensual €</Label>
+              <Input type="number" step="0.01" value={offer.monthly_payment} onChange={(e) => update({ monthly_payment: +e.target.value })} />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             <div>
               <Label className="text-xs">Comisión amort. %</Label>
               <Input type="number" step="0.01" value={offer.amortization_fee_pct} onChange={(e) => update({ amortization_fee_pct: +e.target.value })} />

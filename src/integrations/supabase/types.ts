@@ -92,10 +92,12 @@ export type Database = {
           base_tin: number
           considerations: string[]
           created_at: string
+          estimated_tae: number
           euribor_rate: number | null
           id: string
           logo_color: string
           monthly_account_cost: number
+          monthly_payment: number
           operation_id: string
           sort_order: number
           type: string
@@ -108,10 +110,12 @@ export type Database = {
           base_tin?: number
           considerations?: string[]
           created_at?: string
+          estimated_tae?: number
           euribor_rate?: number | null
           id?: string
           logo_color?: string
           monthly_account_cost?: number
+          monthly_payment?: number
           operation_id: string
           sort_order?: number
           type?: string
@@ -124,10 +128,12 @@ export type Database = {
           base_tin?: number
           considerations?: string[]
           created_at?: string
+          estimated_tae?: number
           euribor_rate?: number | null
           id?: string
           logo_color?: string
           monthly_account_cost?: number
+          monthly_payment?: number
           operation_id?: string
           sort_order?: number
           type?: string
