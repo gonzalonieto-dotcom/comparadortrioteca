@@ -14,13 +14,183 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      offer_linkages: {
+        Row: {
+          annual_cost: number
+          discount_weight_pct: number
+          id: string
+          is_active_default: boolean
+          label: string
+          offer_id: string
+        }
+        Insert: {
+          annual_cost?: number
+          discount_weight_pct?: number
+          id?: string
+          is_active_default?: boolean
+          label: string
+          offer_id: string
+        }
+        Update: {
+          annual_cost?: number
+          discount_weight_pct?: number
+          id?: string
+          is_active_default?: boolean
+          label?: string
+          offer_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "offer_linkages_offer_id_fkey"
+            columns: ["offer_id"]
+            isOneToOne: false
+            referencedRelation: "offers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      offer_mixed_periods: {
+        Row: {
+          fixed_tin: number | null
+          from_year: number
+          id: string
+          offer_id: string
+          spread_over_euribor: number | null
+          to_year: number
+        }
+        Insert: {
+          fixed_tin?: number | null
+          from_year: number
+          id?: string
+          offer_id: string
+          spread_over_euribor?: number | null
+          to_year: number
+        }
+        Update: {
+          fixed_tin?: number | null
+          from_year?: number
+          id?: string
+          offer_id?: string
+          spread_over_euribor?: number | null
+          to_year?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "offer_mixed_periods_offer_id_fkey"
+            columns: ["offer_id"]
+            isOneToOne: false
+            referencedRelation: "offers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      offers: {
+        Row: {
+          advantages: string[]
+          amortization_fee_pct: number
+          bank_name: string
+          base_tin: number
+          considerations: string[]
+          created_at: string
+          euribor_rate: number | null
+          id: string
+          logo_color: string
+          monthly_account_cost: number
+          operation_id: string
+          sort_order: number
+          type: string
+          upfront_costs: number
+        }
+        Insert: {
+          advantages?: string[]
+          amortization_fee_pct?: number
+          bank_name: string
+          base_tin?: number
+          considerations?: string[]
+          created_at?: string
+          euribor_rate?: number | null
+          id?: string
+          logo_color?: string
+          monthly_account_cost?: number
+          operation_id: string
+          sort_order?: number
+          type?: string
+          upfront_costs?: number
+        }
+        Update: {
+          advantages?: string[]
+          amortization_fee_pct?: number
+          bank_name?: string
+          base_tin?: number
+          considerations?: string[]
+          created_at?: string
+          euribor_rate?: number | null
+          id?: string
+          logo_color?: string
+          monthly_account_cost?: number
+          operation_id?: string
+          sort_order?: number
+          type?: string
+          upfront_costs?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "offers_operation_id_fkey"
+            columns: ["operation_id"]
+            isOneToOne: false
+            referencedRelation: "operations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      operations: {
+        Row: {
+          appraisal_cost: number
+          appraisal_value: number
+          created_at: string
+          created_by: string
+          home_insurance_annual: number
+          id: string
+          life_insurance_annual: number
+          loan_amount: number
+          purchase_price: number
+          share_token: string | null
+          term_years: number
+        }
+        Insert: {
+          appraisal_cost?: number
+          appraisal_value?: number
+          created_at?: string
+          created_by: string
+          home_insurance_annual?: number
+          id?: string
+          life_insurance_annual?: number
+          loan_amount?: number
+          purchase_price?: number
+          share_token?: string | null
+          term_years?: number
+        }
+        Update: {
+          appraisal_cost?: number
+          appraisal_value?: number
+          created_at?: string
+          created_by?: string
+          home_insurance_annual?: number
+          id?: string
+          life_insurance_annual?: number
+          loan_amount?: number
+          purchase_price?: number
+          share_token?: string | null
+          term_years?: number
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      generate_share_token: { Args: never; Returns: string }
     }
     Enums: {
       [_ in never]: never
