@@ -18,7 +18,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
 import { ArrowLeft, Plus, Save, Copy } from "lucide-react";
-import triotecaLogo from "@/assets/trioteca-logo.svg";
+import triotecaLogo from "@/assets/trioteca-logo-vert.png";
 
 const MAX_OFFERS = 5;
 

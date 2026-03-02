@@ -14,7 +14,7 @@ import ExternalOfferForm from "@/components/ExternalOfferForm";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { ChevronDown } from "lucide-react";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import triotecaLogo from "@/assets/trioteca-logo.svg";
+import triotecaLogo from "@/assets/trioteca-logo-vert.png";
 
 export interface PartialPayment {
   year: number;
