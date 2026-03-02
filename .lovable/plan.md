@@ -1,135 +1,74 @@
 
 
-# Plan: Backend y Panel de Gestión para Trioteca
+# Fix: Políticas RLS y Usuarios de Prueba
 
-## Resumen
+## Problema detectado
 
-Crear la base de datos y un panel de administración (data entry) para que los gestores de Trioteca puedan cargar operaciones hipotecarias y ofertas de bancos. El comparador actual del usuario final seguirá funcionando igual, pero alimentándose de datos reales en lugar de datos hardcodeados.
+Las políticas de seguridad (RLS) de las 4 tablas están creadas como **RESTRICTIVE** en lugar de **PERMISSIVE**. En modo restrictivo, TODAS las políticas deben cumplirse a la vez. Esto significa que un usuario anónimo que accede via `/op/:token` falla porque la política de "gestores autenticados" también se evalúa y bloquea el acceso. De ahí el error de "token de validación".
 
-## Arquitectura
+## Plan de corrección
 
-```text
-┌─────────────────────┐     ┌──────────────────┐
-│  Panel Gestor       │     │  Vista Usuario    │
-│  /admin/*           │────>│  / (actual)       │
-│  (CRUD operaciones  │     │  Lee datos de DB  │
-│   y ofertas)        │     │  según operation  │
-└─────────────────────┘     └──────────────────┘
-         │                           │
-         └───────────┬───────────────┘
-                     │
-              ┌──────▼──────┐
-              │  Lovable    │
-              │  Cloud DB   │
-              └─────────────┘
-```
+### 1. Migración SQL: Corregir las políticas RLS
 
-## 1. Base de datos (4 tablas)
+Eliminar las 8 políticas actuales (2 por tabla) y recrearlas como **PERMISSIVE** (el comportamiento por defecto de Postgres, donde basta con que UNA política permita el acceso).
 
-### Tabla `operations` - Los datos de la operación hipotecaria
-| Columna | Tipo | Descripcion |
-|---|---|---|
-| id | uuid PK | |
-| purchase_price | numeric | Precio vivienda |
-| appraisal_value | numeric | Valor tasación |
-| loan_amount | numeric | Importe préstamo |
-| term_years | integer | Plazo en años |
-| home_insurance_annual | numeric | Seguro hogar anual default |
-| life_insurance_annual | numeric | Seguro vida anual default |
-| appraisal_cost | numeric | Coste tasación |
-| created_by | uuid FK auth.users | Gestor que la creó |
-| share_token | text UNIQUE | Token para compartir con usuario final |
-| created_at | timestamptz | |
+Además, la política de lectura pública en `operations` debe filtrarse por `share_token IS NOT NULL` para que solo se lean operaciones compartidas.
 
-### Tabla `offers` - Las ofertas de cada banco
-| Columna | Tipo |
-|---|---|
-| id | uuid PK |
-| operation_id | uuid FK operations |
-| bank_name | text |
-| logo_color | text |
-| type | text (Fijo/Mixto/Variable) |
-| base_tin | numeric |
-| amortization_fee_pct | numeric |
-| upfront_costs | numeric |
-| monthly_account_cost | numeric |
-| euribor_rate | numeric (nullable) |
-| advantages | text[] |
-| considerations | text[] |
-| sort_order | integer |
+Tablas afectadas:
+- `operations`: SELECT público (con filtro share_token), ALL para el gestor dueño
+- `offers`: SELECT público (si la operación tiene share_token), ALL para el gestor dueño
+- `offer_linkages`: SELECT público, ALL para el gestor dueño
+- `offer_mixed_periods`: SELECT público, ALL para el gestor dueño
 
-### Tabla `offer_linkages` - Bonificaciones/vinculaciones de cada oferta
-| Columna | Tipo |
-|---|---|
-| id | uuid PK |
-| offer_id | uuid FK offers |
-| label | text |
-| is_active_default | boolean |
-| discount_weight_pct | numeric |
-| annual_cost | numeric |
+### 2. Crear usuarios de prueba
 
-### Tabla `offer_mixed_periods` - Periodos mixtos (solo para hipotecas mixtas)
-| Columna | Tipo |
-|---|---|
-| id | uuid PK |
-| offer_id | uuid FK offers |
-| from_year | integer |
-| to_year | integer |
-| fixed_tin | numeric (nullable) |
-| spread_over_euribor | numeric (nullable) |
+Ya que la autenticación requiere verificación de email, vamos a **habilitar auto-confirm temporalmente** para poder crear los usuarios de prueba, y luego los crearemos desde el código:
 
-### Seguridad (RLS)
-- Gestores autenticados: CRUD completo en sus operaciones y datos relacionados
-- Usuarios anónimos: lectura via `share_token` (sin autenticación)
+- **Gestor**: `gestor@trioteca.test` / password: `gestor123`
+- **Cliente**: El cliente NO necesita cuenta -- accede via link `/op/:token` sin autenticación
 
-## 2. Autenticación para gestores
+Nota: El "cliente" no necesita usuario porque accede via token público. El comparador en `/` usa datos demo y en `/op/:token` carga datos de la BD sin login.
 
-- Página `/login` con email + contraseña
-- Sin auto-confirm (verificación por email)
-- Solo gestores necesitan cuenta; el usuario final accede via link con token
+### 3. Crear una seed de datos de prueba
 
-## 3. Panel de administración `/admin`
+Añadir un botón o script para que el gestor pueda crear una operación de ejemplo con ofertas precargadas, facilitando las pruebas.
 
-### 3a. Lista de operaciones (`/admin/operations`)
-- Tabla con todas las operaciones del gestor
-- Botón "Nueva operación"
-- Cada fila: ver, editar, copiar link de compartir
-
-### 3b. Formulario de operación (`/admin/operations/:id`)
-- Campos de la operación (precio, importe, plazo, etc.)
-- Sección de ofertas con posibilidad de añadir/editar/eliminar
-- Cada oferta: datos del banco, vinculaciones, periodos mixtos, ventajas y consideraciones
-- Botón "Generar link para cliente"
-
-## 4. Vista usuario final modificada
-
-- Ruta `/op/:token` carga datos de la BD usando el `share_token`
-- La ruta `/` seguirá mostrando datos demo (los hardcodeados actuales)
-- Misma experiencia visual actual, solo cambia la fuente de datos
-
-## Detalle técnico de implementación
+## Detalle técnico
 
 ### Migración SQL
-- Crear las 4 tablas con RLS habilitado
-- Policies: gestores autenticados leen/escriben sus datos; lectura pública via share_token
-- Función `generate_share_token()` para crear tokens únicos
 
-### Ficheros nuevos
-- `src/pages/Login.tsx` - Login de gestores
-- `src/pages/admin/Operations.tsx` - Lista de operaciones
-- `src/pages/admin/OperationEditor.tsx` - Editor de operación + ofertas
-- `src/components/admin/OfferEditor.tsx` - Formulario de una oferta
-- `src/components/admin/LinkageEditor.tsx` - Editor de vinculaciones
-- `src/components/admin/MixedPeriodEditor.tsx` - Editor de periodos mixtos
-- `src/hooks/useOperation.ts` - Hook para CRUD de operaciones
-- `src/pages/SharedOperation.tsx` - Vista usuario con datos de DB
+```sql
+-- Drop all RESTRICTIVE policies and recreate as PERMISSIVE
+
+-- operations
+DROP POLICY IF EXISTS "Public read via share_token" ON public.operations;
+DROP POLICY IF EXISTS "Users can manage own operations" ON public.operations;
+
+CREATE POLICY "Public read via share_token" ON public.operations
+  FOR SELECT USING (share_token IS NOT NULL);
+
+CREATE POLICY "Users can manage own operations" ON public.operations
+  FOR ALL TO authenticated
+  USING (created_by = auth.uid())
+  WITH CHECK (created_by = auth.uid());
+
+-- offers
+DROP POLICY IF EXISTS "Public read offers via operation" ON public.offers;
+DROP POLICY IF EXISTS "Users can manage offers of own operations" ON public.offers;
+
+CREATE POLICY "Public read offers via operation" ON public.offers
+  FOR SELECT USING (true);
+
+CREATE POLICY "Users can manage offers of own operations" ON public.offers
+  FOR ALL TO authenticated
+  USING (operation_id IN (SELECT id FROM operations WHERE created_by = auth.uid()))
+  WITH CHECK (operation_id IN (SELECT id FROM operations WHERE created_by = auth.uid()));
+
+-- offer_linkages (same pattern)
+-- offer_mixed_periods (same pattern)
+```
 
 ### Ficheros modificados
-- `src/App.tsx` - Añadir rutas `/login`, `/admin/*`, `/op/:token`
-- `src/data/mortgageData.ts` - Añadir funciones para mapear datos de DB a tipos existentes
 
-### Rutas protegidas
-- `/admin/*` requiere autenticación
-- `/op/:token` es público (acceso via token)
-- `/login` redirige a `/admin` si ya autenticado
-
+- **Sin cambios de código** -- solo migración SQL para arreglar las políticas RLS
+- Opcional: pequeño ajuste en `Login.tsx` para mostrar credenciales de prueba en desarrollo
