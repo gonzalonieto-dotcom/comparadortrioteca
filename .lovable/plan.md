@@ -1,57 +1,102 @@
 
 
-# Plan: Corregir login y completar el data entry de ofertas
+# Plan: MVP Comparador Hipotecario End-to-End
 
-## Situacion actual
+## Resumen
 
-Las buenas noticias:
-- Las politicas de seguridad (RLS) ya estan corregidas y son PERMISSIVE
-- El usuario de prueba `gestor@trioteca.test` ya existe y esta confirmado
-- El panel de administracion ya existe en `/admin` con editor de operaciones y ofertas
-- El login deberia funcionar ahora con las credenciales de prueba
+Reutilizar la infraestructura existente (tablas `operations`, `offers`, `offer_linkages`) y el front del comparador (`SharedOperation.tsx`, `mortgageCalc.ts`) para construir el flujo completo gestor-cliente. Los cambios principales son: agregar campo `is_published`, crear Edge Function para lectura publica segura, corregir las politicas RLS, y reorganizar rutas.
 
-## Cambios necesarios
+## Cambios
 
-### 1. Agregar campos TAE estimada y Cuota mensual a las ofertas
+### 1. Migracion SQL
 
-El usuario pide poder ingresar TAE estimada y cuota por mes en cada oferta. Actualmente estos campos no existen en la tabla `offers`.
+- Agregar columna `is_published boolean NOT NULL DEFAULT false` a `operations`
+- Eliminar TODAS las politicas RLS existentes (son RESTRICTIVE, lo cual bloquea el acceso)
+- Recrear politicas como PERMISSIVE:
+  - `operations`: SELECT publico si `share_token IS NOT NULL`, ALL para gestor autenticado dueño
+  - `offers`: SELECT publico, ALL para gestor dueño via subquery
+  - `offer_linkages` y `offer_mixed_periods`: idem
 
-- Agregar columnas `estimated_tae` (numeric, default 0) y `monthly_payment` (numeric, default 0) a la tabla `offers`
-- Actualizar el formulario `OfferEditor.tsx` para incluir estos dos campos
-- Actualizar los tipos en `useOperation.ts` (`DbOffer`) para incluir los nuevos campos
-- Actualizar el `upsertOffer` en `OperationEditor.tsx` para guardar estos campos
+### 2. Edge Function `get-comparison`
 
-### 2. Simplificar el boton de login
+Crear `supabase/functions/get-comparison/index.ts`:
+- Input: `{ token: string }`
+- Usa service role key para consultar sin RLS
+- Busca `operations` por `share_token` donde `is_published = true`
+- Si no existe o no publicada: 404 con mensaje amigable
+- Devuelve operation + offers + linkages + mixed_periods en JSON
+- CORS habilitado
+- `verify_jwt = false` en config.toml
 
-Actualmente el boton "Acceder con credenciales de prueba" hace signup + signin. Como el usuario ya existe, simplificar para que solo haga signin y muestre un mensaje claro si falla. Tambien asegurar que el formulario normal de login funcione correctamente navegando a `/admin` tras el login.
+### 3. Ruta cliente `/c/:token`
 
-### 3. Reorganizar los campos del editor de ofertas
+Crear `src/pages/ClientComparison.tsx`:
+- Llama a la Edge Function `get-comparison` con el token
+- Mapea la respuesta al shape `OperationDefaults` + `Offer[]` (misma estructura que ya usa el front)
+- Renderiza el mismo UI que `SharedOperation.tsx` pero con datos de la Edge Function
+- `LoanHeader` en modo solo lectura (ya lo es)
+- Si error/no publicada: muestra mensaje de error claro
 
-Reordenar el formulario para que sea mas intuitivo con el flujo que pide el usuario:
-- Banco y Tipo (primera fila)
-- TIN bonificado, TAE estimada, Cuota mensual (segunda fila, datos financieros clave)
-- Comision por amortizacion (tercera fila)
-- Bonificaciones / Vinculaciones (seccion existente con Nomina, Seguro hogar, Seguro vida preconfiguradas)
+### 4. Rutas admin
+
+- `/admin/login` -> pagina Login (mover de `/login`)
+- `/admin/dashboard` -> lista de comparativas (actualmente en `/admin`)
+- `/admin/dashboard/:id` -> editor de operacion (actualmente en `/admin/operations/:id`)
+
+### 5. Dashboard gestor (`Operations.tsx`)
+
+Agregar:
+- Columna "Estado" (Publicada/Borrador) en la tabla
+- Boton publicar/despublicar por operacion
+- El link solo se puede copiar si esta publicada
+- Mostrar el link `/c/:token` en lugar de `/op/:token`
+
+### 6. Editor de operacion (`OperationEditor.tsx`)
+
+- Limitar a maximo 5 ofertas (deshabilitar boton "Anadir oferta" si ya hay 5)
+- Agregar toggle de publicacion en el header
+- Simplificar campos de operacion a los 3 que pide el usuario: importe prestamo, precio vivienda, plazo (mantener los demas en BD con defaults)
+
+### 7. Login (`Login.tsx`)
+
+- Mover a ruta `/admin/login`
+- Boton de credenciales de prueba hace solo `signIn` directo
+- Redirige a `/admin/dashboard` tras login exitoso
+
+### 8. Actualizar `App.tsx`
+
+```text
+/c/:token          -> ClientComparison (publico)
+/admin/login       -> Login
+/admin/dashboard   -> Operations (protegido)
+/admin/dashboard/:id -> OperationEditor (protegido)
+/                  -> redirige a /admin/login
+```
 
 ## Detalle tecnico
 
-### Migracion SQL
-```sql
-ALTER TABLE public.offers
-  ADD COLUMN estimated_tae numeric NOT NULL DEFAULT 0,
-  ADD COLUMN monthly_payment numeric NOT NULL DEFAULT 0;
-```
+### Shape de datos (sin cambios en el front)
+
+La Edge Function devuelve datos que se mapean a:
+- `OperationDefaults` (purchasePrice, loanAmount, termYears, etc.)
+- `Offer[]` con `linkages: Linkage[]` y `mixedPeriods: MixedRatePeriod[]`
+
+Esto alimenta `computeOffer()` que calcula TIN bonificado, cuota, TAE, coste total -- toda la logica existente sin modificaciones.
+
+### Ficheros a crear
+- `supabase/functions/get-comparison/index.ts`
+- `src/pages/ClientComparison.tsx`
 
 ### Ficheros a modificar
-- `src/components/admin/OfferEditor.tsx` -- agregar campos TAE y cuota, reorganizar layout
-- `src/hooks/useOperation.ts` -- agregar campos al tipo DbOffer y al mapeo
-- `src/pages/admin/OperationEditor.tsx` -- incluir nuevos campos en upsert
-- `src/pages/Login.tsx` -- simplificar el flujo de login para que funcione sin errores
+- `supabase/config.toml` (agregar config de edge function -- nota: NO se edita manualmente, se gestiona via herramientas)
+- `src/App.tsx` (rutas)
+- `src/pages/admin/Operations.tsx` (publicar/despublicar, link `/c/:token`)
+- `src/pages/admin/OperationEditor.tsx` (limite 5 ofertas, toggle publicacion, simplificar campos)
+- `src/pages/Login.tsx` (redirigir a `/admin/dashboard`)
+- `src/hooks/useOperation.ts` (agregar `is_published` al tipo, funcion para toggle)
 
-### Flujo completo verificado
-1. Gestor va a `/login` y hace clic en "Acceder con credenciales de prueba"
-2. Se loguea y navega a `/admin`
-3. Crea una nueva operacion (importe, precio vivienda, plazo)
-4. Anade ofertas con banco, tipo, TIN, TAE, cuota, comision, bonificaciones
-5. Guarda -- se genera ID y queda persistido en base de datos
-6. Copia el link del cliente (`/op/:token`) que no se borra y siempre funciona
+### Ficheros sin cambios
+- `src/lib/mortgageCalc.ts` -- toda la logica de calculo intacta
+- `src/components/RecommendedOffer.tsx` -- logica de recomendacion intacta
+- `src/components/OfferTable.tsx`, `CostBreakdown.tsx`, etc. -- UI intacta
+
