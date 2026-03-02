@@ -10,10 +10,14 @@ import OfferEditor, { type OfferFormData } from "@/components/admin/OfferEditor"
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
+import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
 import { ArrowLeft, Plus, Save, Copy } from "lucide-react";
 import triotecaLogo from "@/assets/trioteca-logo.svg";
+
+const MAX_OFFERS = 5;
 
 const OperationEditor = () => {
   const { id } = useParams<{ id: string }>();
@@ -22,16 +26,16 @@ const OperationEditor = () => {
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(true);
 
-  // Operation fields
   const [op, setOp] = useState({
     purchase_price: 0, appraisal_value: 0, loan_amount: 0, term_years: 30,
     home_insurance_annual: 0, life_insurance_annual: 0, appraisal_cost: 0,
   });
   const [shareToken, setShareToken] = useState("");
+  const [isPublished, setIsPublished] = useState(false);
   const [offers, setOffers] = useState<OfferFormData[]>([]);
 
   useEffect(() => {
-    if (!authLoading && !user) navigate("/login");
+    if (!authLoading && !user) navigate("/admin/login");
   }, [user, authLoading, navigate]);
 
   useEffect(() => {
@@ -55,6 +59,7 @@ const OperationEditor = () => {
         appraisal_cost: dbOp.appraisal_cost,
       });
       setShareToken(dbOp.share_token);
+      setIsPublished(dbOp.is_published);
 
       const { offers: dbOffers, linkages, mixedPeriods } = await fetchOffersByOperation(id!);
       setOffers(dbOffers.map((o) => ({
@@ -95,11 +100,8 @@ const OperationEditor = () => {
   const handleSave = async () => {
     setSaving(true);
     try {
-      // Save operation
-      await updateOperation(id!, op);
+      await updateOperation(id!, { ...op, is_published: isPublished } as any);
 
-      // Save offers
-      // Get existing offer IDs to detect deletions
       const { offers: existingOffers } = await fetchOffersByOperation(id!);
       const newIds = new Set(offers.filter((o) => o.id).map((o) => o.id));
       for (const existing of existingOffers) {
@@ -130,8 +132,8 @@ const OperationEditor = () => {
         await saveMixedPeriods(saved.id, offer.mixedPeriods);
       }
 
-      toast.success("Operación guardada");
-      await loadData(); // reload to get IDs
+      toast.success("Comparativa guardada");
+      await loadData();
     } catch (err: any) {
       toast.error(err.message);
     } finally {
@@ -140,6 +142,10 @@ const OperationEditor = () => {
   };
 
   const addOffer = () => {
+    if (offers.length >= MAX_OFFERS) {
+      toast.error(`Máximo ${MAX_OFFERS} ofertas por comparativa`);
+      return;
+    }
     setOffers((prev) => [...prev, {
       bank_name: "", logo_color: "hsl(200, 70%, 50%)", type: "Fijo",
       base_tin: 0, estimated_tae: 0, monthly_payment: 0,
@@ -150,7 +156,11 @@ const OperationEditor = () => {
   };
 
   const copyLink = () => {
-    navigator.clipboard.writeText(`${window.location.origin}/op/${shareToken}`);
+    if (!isPublished) {
+      toast.error("Publica la comparativa antes de copiar el link");
+      return;
+    }
+    navigator.clipboard.writeText(`${window.location.origin}/c/${shareToken}`);
     toast.success("Link copiado");
   };
 
@@ -162,12 +172,18 @@ const OperationEditor = () => {
         <div className="max-w-5xl mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <img src={triotecaLogo} alt="Trioteca" className="h-8" />
-            <Button variant="ghost" size="sm" onClick={() => navigate("/admin")}>
+            <Button variant="ghost" size="sm" onClick={() => navigate("/admin/dashboard")}>
               <ArrowLeft className="h-4 w-4 mr-1" />Volver
             </Button>
           </div>
-          <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" onClick={copyLink}>
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2">
+              <Switch checked={isPublished} onCheckedChange={setIsPublished} />
+              <Badge variant={isPublished ? "default" : "secondary"}>
+                {isPublished ? "Publicada" : "Borrador"}
+              </Badge>
+            </div>
+            <Button variant="outline" size="sm" onClick={copyLink} disabled={!isPublished}>
               <Copy className="h-4 w-4 mr-1" />Link cliente
             </Button>
             <Button size="sm" onClick={handleSave} disabled={saving}>
@@ -178,20 +194,15 @@ const OperationEditor = () => {
       </header>
 
       <main className="max-w-5xl mx-auto px-4 py-8 space-y-6">
-        {/* Operation details */}
         <Card>
           <CardHeader>
             <CardTitle>Datos de la operación</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
                 <Label>Precio vivienda €</Label>
                 <Input type="number" value={op.purchase_price} onChange={(e) => setOp({ ...op, purchase_price: +e.target.value })} />
-              </div>
-              <div>
-                <Label>Valor tasación €</Label>
-                <Input type="number" value={op.appraisal_value} onChange={(e) => setOp({ ...op, appraisal_value: +e.target.value })} />
               </div>
               <div>
                 <Label>Importe préstamo €</Label>
@@ -201,27 +212,14 @@ const OperationEditor = () => {
                 <Label>Plazo (años)</Label>
                 <Input type="number" value={op.term_years} onChange={(e) => setOp({ ...op, term_years: +e.target.value })} />
               </div>
-              <div>
-                <Label>Seguro hogar €/año</Label>
-                <Input type="number" step="0.01" value={op.home_insurance_annual} onChange={(e) => setOp({ ...op, home_insurance_annual: +e.target.value })} />
-              </div>
-              <div>
-                <Label>Seguro vida €/año</Label>
-                <Input type="number" step="0.01" value={op.life_insurance_annual} onChange={(e) => setOp({ ...op, life_insurance_annual: +e.target.value })} />
-              </div>
-              <div>
-                <Label>Coste tasación €</Label>
-                <Input type="number" step="0.01" value={op.appraisal_cost} onChange={(e) => setOp({ ...op, appraisal_cost: +e.target.value })} />
-              </div>
             </div>
           </CardContent>
         </Card>
 
-        {/* Offers */}
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-semibold">Ofertas de bancos</h2>
-          <Button onClick={addOffer}>
-            <Plus className="h-4 w-4 mr-2" />Añadir oferta
+          <Button onClick={addOffer} disabled={offers.length >= MAX_OFFERS}>
+            <Plus className="h-4 w-4 mr-2" />Añadir oferta {offers.length >= MAX_OFFERS && `(máx. ${MAX_OFFERS})`}
           </Button>
         </div>
 

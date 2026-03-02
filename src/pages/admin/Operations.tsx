@@ -1,12 +1,13 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
-import { fetchMyOperations, createOperation, deleteOperation, type DbOperation } from "@/hooks/useOperation";
+import { fetchMyOperations, createOperation, deleteOperation, updateOperation, type DbOperation } from "@/hooks/useOperation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { Plus, Pencil, Trash2, Copy, LogOut } from "lucide-react";
+import { Plus, Pencil, Trash2, Copy, LogOut, Eye, EyeOff } from "lucide-react";
 import triotecaLogo from "@/assets/trioteca-logo.svg";
 
 const Operations = () => {
@@ -16,7 +17,7 @@ const Operations = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!authLoading && !user) navigate("/login");
+    if (!authLoading && !user) navigate("/admin/login");
   }, [user, authLoading, navigate]);
 
   useEffect(() => {
@@ -46,7 +47,7 @@ const Operations = () => {
         life_insurance_annual: 180,
         appraisal_cost: 400,
       });
-      navigate(`/admin/operations/${op.id}`);
+      navigate(`/admin/dashboard/${op.id}`);
     } catch (err: any) {
       toast.error(err.message);
     }
@@ -63,8 +64,22 @@ const Operations = () => {
     }
   };
 
-  const copyLink = (token: string) => {
-    navigator.clipboard.writeText(`${window.location.origin}/op/${token}`);
+  const togglePublish = async (op: DbOperation) => {
+    try {
+      const updated = await updateOperation(op.id, { is_published: !op.is_published } as any);
+      setOperations((prev) => prev.map((o) => o.id === op.id ? { ...o, is_published: updated.is_published } : o));
+      toast.success(updated.is_published ? "Comparativa publicada" : "Comparativa despublicada");
+    } catch (err: any) {
+      toast.error(err.message);
+    }
+  };
+
+  const copyLink = (op: DbOperation) => {
+    if (!op.is_published) {
+      toast.error("Publica la comparativa antes de copiar el link");
+      return;
+    }
+    navigator.clipboard.writeText(`${window.location.origin}/c/${op.share_token}`);
     toast.success("Link copiado al portapapeles");
   };
 
@@ -79,7 +94,7 @@ const Operations = () => {
           <img src={triotecaLogo} alt="Trioteca" className="h-8" />
           <div className="flex items-center gap-3">
             <span className="text-xs text-muted-foreground hidden sm:block">{user?.email}</span>
-            <Button variant="ghost" size="sm" onClick={() => { signOut(); navigate("/login"); }}>
+            <Button variant="ghost" size="sm" onClick={() => { signOut(); navigate("/admin/login"); }}>
               <LogOut className="h-4 w-4" />
             </Button>
           </div>
@@ -89,14 +104,14 @@ const Operations = () => {
       <main className="max-w-5xl mx-auto px-4 py-8">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle>Mis operaciones</CardTitle>
-            <Button onClick={handleNew}><Plus className="h-4 w-4 mr-2" />Nueva operación</Button>
+            <CardTitle>Mis comparativas</CardTitle>
+            <Button onClick={handleNew}><Plus className="h-4 w-4 mr-2" />Nueva comparativa</Button>
           </CardHeader>
           <CardContent>
             {loading ? (
               <p className="text-muted-foreground text-sm">Cargando...</p>
             ) : operations.length === 0 ? (
-              <p className="text-muted-foreground text-sm">No hay operaciones aún. Crea la primera.</p>
+              <p className="text-muted-foreground text-sm">No hay comparativas aún. Crea la primera.</p>
             ) : (
               <Table>
                 <TableHeader>
@@ -104,6 +119,7 @@ const Operations = () => {
                     <TableHead>Importe</TableHead>
                     <TableHead>Precio vivienda</TableHead>
                     <TableHead>Plazo</TableHead>
+                    <TableHead>Estado</TableHead>
                     <TableHead>Creada</TableHead>
                     <TableHead className="text-right">Acciones</TableHead>
                   </TableRow>
@@ -114,12 +130,20 @@ const Operations = () => {
                       <TableCell className="font-medium">{fmt(op.loan_amount)}</TableCell>
                       <TableCell>{fmt(op.purchase_price)}</TableCell>
                       <TableCell>{op.term_years} años</TableCell>
+                      <TableCell>
+                        <Badge variant={op.is_published ? "default" : "secondary"}>
+                          {op.is_published ? "Publicada" : "Borrador"}
+                        </Badge>
+                      </TableCell>
                       <TableCell>{new Date(op.created_at).toLocaleDateString("es-ES")}</TableCell>
                       <TableCell className="text-right space-x-1">
-                        <Button variant="ghost" size="sm" onClick={() => navigate(`/admin/operations/${op.id}`)}>
+                        <Button variant="ghost" size="sm" onClick={() => navigate(`/admin/dashboard/${op.id}`)}>
                           <Pencil className="h-4 w-4" />
                         </Button>
-                        <Button variant="ghost" size="sm" onClick={() => copyLink(op.share_token)}>
+                        <Button variant="ghost" size="sm" onClick={() => togglePublish(op)} title={op.is_published ? "Despublicar" : "Publicar"}>
+                          {op.is_published ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                        </Button>
+                        <Button variant="ghost" size="sm" onClick={() => copyLink(op)} disabled={!op.is_published}>
                           <Copy className="h-4 w-4" />
                         </Button>
                         <Button variant="ghost" size="sm" onClick={() => handleDelete(op.id)}>

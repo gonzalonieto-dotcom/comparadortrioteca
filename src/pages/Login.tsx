@@ -27,7 +27,7 @@ const Login = () => {
       } else {
         const { error } = await signIn(email, password);
         if (error) throw error;
-        navigate("/admin");
+        navigate("/admin/dashboard");
       }
     } catch (err: any) {
       toast.error(err.message || "Error de autenticación");
@@ -84,7 +84,7 @@ const Login = () => {
                   const { error } = await signIn("gestor@trioteca.test", "gestor123");
                   if (error) throw error;
                   toast.success("Sesión iniciada");
-                  navigate("/admin");
+                  navigate("/admin/dashboard");
                 } catch (err: any) {
                   toast.error(err.message || "Error al acceder");
                 } finally {
