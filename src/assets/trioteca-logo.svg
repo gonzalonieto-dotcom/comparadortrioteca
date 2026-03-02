@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 44" fill="none">
+  <!-- House icon -->
+  <g fill="#FFC800">
+    <path d="M16.5 4L3 16h4.5v14h18V16H30L16.5 4z"/>
+    <rect x="12.5" y="21" width="8" height="9" rx="1" fill="white"/>
+  </g>
+  <!-- Brand text -->
+  <text x="36" y="30" font-family="'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif" font-size="24" font-weight="700" fill="#1a1a1a" letter-spacing="-0.5">trioteca</text>
+</svg>
