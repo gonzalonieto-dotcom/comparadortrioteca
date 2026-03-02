@@ -8,6 +8,8 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import OfferEditor, { type OfferFormData, BANK_PRESETS } from "@/components/admin/OfferEditor";
 import { PRESET_LINKAGES } from "@/components/admin/LinkageEditor";
+import { calcMonthlyPayment, calcEstimatedTAE, calcBonifiedTIN, generateAmortizationSchedule } from "@/lib/mortgageCalc";
+import type { Offer, OperationDefaults, Linkage, MixedRatePeriod } from "@/data/mortgageData";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -129,6 +131,35 @@ const OperationEditor = () => {
 
       for (let i = 0; i < offers.length; i++) {
         const offer = offers[i];
+
+        // Compute TAE & payment for persistence
+        const linkages: Linkage[] = offer.linkages.map((l, j) => ({
+          id: `l-${j}`, label: l.label, isActive: l.is_active_default,
+          discountWeightPct: l.discount_weight_pct, annualCostEUR: l.annual_cost,
+        }));
+        const totalDiscount = linkages.filter(l => l.isActive).reduce((s, l) => s + l.discountWeightPct, 0);
+        const mixedPeriods: MixedRatePeriod[] | undefined = offer.mixedPeriods.length > 0
+          ? offer.mixedPeriods.map(m => ({ fromYear: m.from_year, toYear: m.to_year, fixedTIN: m.fixed_tin ?? undefined, spreadOverEuribor: m.spread_over_euribor ?? undefined }))
+          : undefined;
+        const calcOffer: Offer = {
+          id: offer.id || "temp", bankName: offer.bank_name, logoColor: offer.logo_color,
+          type: offer.type as Offer["type"], baseTIN: offer.base_tin + totalDiscount,
+          amortizationFeePct: offer.amortization_fee_pct, upfrontCostsEUR: offer.upfront_costs,
+          monthlyAccountCostEUR: offer.monthly_account_cost, linkages, advantages: offer.advantages,
+          considerations: offer.considerations, mixedPeriods, euriborRate: offer.euribor_rate ?? undefined,
+        };
+        const defaults: OperationDefaults = {
+          purchasePrice: op.loan_amount, appraisalValue: op.loan_amount,
+          loanAmount: op.loan_amount, termYears: op.term_years,
+          homeInsuranceAnnualDefault: 0, lifeInsuranceAnnualDefault: 0,
+          appraisalCostEUR: op.appraisal_cost,
+        };
+        const bonifiedTIN = calcBonifiedTIN(calcOffer);
+        const termMonths = op.term_years * 12;
+        const schedule = generateAmortizationSchedule(op.loan_amount, bonifiedTIN, termMonths, calcOffer);
+        const computedPayment = schedule[0]?.payment ?? calcMonthlyPayment(op.loan_amount, bonifiedTIN, termMonths);
+        const computedTAE = calcEstimatedTAE(calcOffer, defaults, schedule);
+
         const saved = await upsertOffer({
           ...(offer.id ? { id: offer.id } : {}),
           operation_id: id!,
@@ -136,8 +167,8 @@ const OperationEditor = () => {
           logo_color: offer.logo_color,
           type: offer.type,
           base_tin: offer.base_tin,
-          estimated_tae: offer.estimated_tae,
-          monthly_payment: offer.monthly_payment,
+          estimated_tae: isFinite(computedTAE) ? +computedTAE.toFixed(2) : 0,
+          monthly_payment: isFinite(computedPayment) ? +computedPayment.toFixed(2) : 0,
           amortization_fee_pct: offer.amortization_fee_pct,
           upfront_costs: offer.upfront_costs,
           monthly_account_cost: offer.monthly_account_cost,
@@ -257,6 +288,7 @@ const OperationEditor = () => {
             onDelete={() => setOffers((prev) => prev.filter((_, idx) => idx !== i))}
             loanAmount={op.loan_amount}
             termYears={op.term_years}
+            appraisalCost={op.appraisal_cost}
           />
         ))}
 
