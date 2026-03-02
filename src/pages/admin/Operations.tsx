@@ -8,7 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { Plus, Pencil, Trash2, Copy, LogOut, Eye, EyeOff } from "lucide-react";
-import triotecaLogo from "@/assets/trioteca-logo.svg";
+import triotecaLogo from "@/assets/trioteca-logo-vert.png";
 
 const Operations = () => {
   const { user, signOut, loading: authLoading } = useAuth();
