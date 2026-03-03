@@ -11,7 +11,7 @@ import { InfoTooltip } from "@/components/InfoTooltip";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Plus, Trash2 } from "lucide-react";
-import { BankLogo } from "@/lib/bankLogos";
+
 
 interface InterestBarChartProps {
   computedOffers: ComputedOffer[];
@@ -320,7 +320,7 @@ const PartialPaymentTab = ({ computedOffers, defaults, partialPayments, onPartia
               {results.map((r) => (
                 <div key={r.bankName} className="bg-muted/30 rounded-lg p-3 border">
                   <div className="flex items-center gap-2 mb-2">
-                    <BankLogo bankName={r.bankName} logoColor={r.logoColor} size="sm" />
+                    <span className="font-medium text-card-foreground text-sm">{r.bankName}</span>
                   </div>
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
                     <div>

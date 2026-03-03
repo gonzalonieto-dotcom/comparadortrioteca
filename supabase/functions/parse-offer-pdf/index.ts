@@ -8,14 +8,19 @@ const corsHeaders = {
 
 const SYSTEM_PROMPT = `Eres un extractor de datos de ofertas hipotecarias bancarias. Analiza el PDF proporcionado y extrae los datos de la oferta.
 
-Bancos conocidos: CaixaBank, Ibercaja, BBVA, Kutxabank, Bankinter.
+Bancos conocidos: CaixaBank, Ibercaja, BBVA, Kutxabank, Bankinter, Santander, Sabadell, Unicaja, ING, Openbank, EVO.
 Tipos de hipoteca: Fijo, Mixto, Variable.
-Vinculaciones conocidas: "Domiciliación de nómina", "Seguro hogar", "Seguro de vida".
 
-IMPORTANTE para hipotecas de tipo Mixto o Variable:
-- Extrae siempre el diferencial sobre Euríbor (spread_over_euribor) cuando esté disponible.
-- Para Mixto, identifica el TIN fijo del primer tramo y el diferencial del tramo variable.
-- El campo base_tin debe contener el TIN bonificado (con descuentos de vinculaciones ya aplicados).
+REGLAS CRÍTICAS:
+1. base_tin debe ser el TIN bonificado (con todos los descuentos de vinculaciones ya aplicados).
+2. Para cada vinculación/bonificación extraída:
+   - discount_weight_pct: cuántos puntos porcentuales (pp) de descuento aporta al TIN. Ejemplo: si sin vinculaciones el TIN es 3.45% y con todas baja a 2.85%, el descuento total es 0.60 pp repartido entre las vinculaciones. Calcula el peso de cada una según el documento.
+   - annual_cost: el coste ANUAL en euros de esa vinculación. Si el documento dice un coste mensual (ej: 45€/mes), multiplica por 12 para obtener el anual (540€/año).
+3. Si el documento muestra un TIN "sin bonificaciones" y un TIN "con bonificaciones", usa esa diferencia para calcular los pesos de descuento.
+4. Para hipotecas Mixto o Variable, extrae el diferencial sobre Euríbor (spread_over_euribor).
+5. Para Mixto, identifica los tramos con sus años y tipos.
+6. Si no hay vinculaciones explícitas en el documento, devuelve un array vacío de linkages.
+7. amortization_fee_pct: comisión de amortización anticipada. Si no se menciona, pon 0.
 
 Usa la herramienta extract_offer_data para devolver los datos extraídos.`;
 

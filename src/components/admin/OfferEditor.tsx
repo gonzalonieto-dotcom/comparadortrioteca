@@ -6,7 +6,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Trash2, ChevronDown, ChevronUp, Calculator } from "lucide-react";
-import { BankLogo } from "@/lib/bankLogos";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+
 import { toast } from "sonner";
 import LinkageEditor, { type LinkageFormData, PRESET_LINKAGES } from "./LinkageEditor";
 import PdfDropZone from "./PdfDropZone";
@@ -151,7 +152,7 @@ const OfferEditor = ({ offer, index, onChange, onDelete, loanAmount, termYears, 
         <CardHeader className="cursor-pointer" onClick={toggleExpanded}>
           <div className="flex items-center justify-between">
             <CardTitle className="text-base flex items-center gap-2">
-              <BankLogo bankName={offer.bank_name || `Oferta ${index + 1}`} logoColor={offer.logo_color} size="md" />
+              <span className="font-medium text-card-foreground">{offer.bank_name || `Oferta ${index + 1}`}</span>
               <span className="text-xs text-muted-foreground font-normal">({offer.type})</span>
             </CardTitle>
             <div className="flex items-center gap-2">
@@ -269,10 +270,11 @@ const OfferEditor = ({ offer, index, onChange, onDelete, loanAmount, termYears, 
         )}
       </Card>
 
-      {expanded && (
+      {expanded && (<>
+
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Ventajas y Vinculaciones</CardTitle>
+            <CardTitle className="text-base">Ventajas</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <div>
@@ -283,10 +285,26 @@ const OfferEditor = ({ offer, index, onChange, onDelete, loanAmount, termYears, 
                 onChange={(e) => update({ advantages: e.target.value.split("\n").filter(Boolean) })}
               />
             </div>
-            <LinkageEditor linkages={offer.linkages} onChange={(linkages) => update({ linkages })} />
           </CardContent>
         </Card>
-      )}
+        <Collapsible>
+          <Card>
+            <CollapsibleTrigger asChild>
+              <CardHeader className="cursor-pointer">
+                <CardTitle className="text-base flex items-center justify-between">
+                  Vinculaciones / Bonificaciones
+                  <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                </CardTitle>
+              </CardHeader>
+            </CollapsibleTrigger>
+            <CollapsibleContent>
+              <CardContent>
+                <LinkageEditor linkages={offer.linkages} onChange={(linkages) => update({ linkages })} />
+              </CardContent>
+            </CollapsibleContent>
+          </Card>
+        </Collapsible>
+      </>)}
     </div>
   );
 };

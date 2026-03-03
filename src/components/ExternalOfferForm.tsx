@@ -124,12 +124,18 @@ const ExternalOfferForm = ({ onAddOffer }: ExternalOfferFormProps) => {
         annualCostEUR: parseFloat(l.cost) || 0,
       }));
 
+    // The calc engine subtracts linkage discounts from baseTIN to get bonifiedTIN.
+    // The user enters the bonified TIN, so we need to add discounts back.
+    const totalDiscount = offerLinkages
+      .filter((l) => l.isActive)
+      .reduce((s, l) => s + l.discountWeightPct, 0);
+
     const offer: Offer = {
       id,
       bankName: "Oferta externa",
       logoColor: color,
       type,
-      baseTIN: parseFloat(baseTIN) || 0,
+      baseTIN: (parseFloat(baseTIN) || 0) + totalDiscount,
       amortizationFeePct: parseFloat(amortFeePct) || 0,
       upfrontCostsEUR: 0,
       monthlyAccountCostEUR: 0,
