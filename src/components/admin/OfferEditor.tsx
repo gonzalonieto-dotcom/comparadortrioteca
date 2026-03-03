@@ -272,21 +272,6 @@ const OfferEditor = ({ offer, index, onChange, onDelete, loanAmount, termYears, 
 
       {expanded && (<>
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Ventajas</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div>
-              <Label className="text-xs">Ventajas (una por línea)</Label>
-              <Textarea
-                rows={4}
-                value={offer.advantages.join("\n")}
-                onChange={(e) => update({ advantages: e.target.value.split("\n").filter(Boolean) })}
-              />
-            </div>
-          </CardContent>
-        </Card>
         <Collapsible>
           <Card>
             <CollapsibleTrigger asChild>
