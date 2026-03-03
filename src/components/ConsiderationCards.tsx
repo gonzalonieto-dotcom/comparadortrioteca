@@ -1,5 +1,6 @@
 import { Offer } from "@/data/mortgageData";
 import { ThumbsUp } from "lucide-react";
+import { BankLogo } from "@/lib/bankLogos";
 
 interface ConsiderationCardsProps {
   offers: Offer[];
@@ -10,8 +11,7 @@ const ConsiderationCards = ({ offers }: ConsiderationCardsProps) => (
     {offers.map((o) => (
       <div key={o.id} className="bg-card rounded-xl border p-4">
         <div className="flex items-center gap-2 mb-3">
-          <div className="w-3 h-3 rounded-full" style={{ backgroundColor: o.logoColor }} />
-          <span className="font-medium text-card-foreground text-sm">{o.bankName}</span>
+          <BankLogo bankName={o.bankName} logoColor={o.logoColor} size="sm" />
         </div>
         <div>
           <div className="flex items-center gap-1.5 mb-1.5">

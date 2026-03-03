@@ -1,5 +1,6 @@
 import { ComputedOffer, calcBonifiedTIN } from "@/lib/mortgageCalc";
 import { useState, useMemo } from "react";
+import { BankLogo } from "@/lib/bankLogos";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { PartialPayment } from "@/pages/Index";
@@ -103,7 +104,7 @@ const AmortizationTable = ({ computedOffers, termYears, partialPayments }: Amort
         <TabsList className="mb-4">
           {adjustedSchedules.map((item) => (
             <TabsTrigger key={item.offer.id} value={item.offer.id} className="text-xs">
-              {item.offer.bankName}
+              <BankLogo bankName={item.offer.bankName} logoColor={item.offer.logoColor} size="sm" />
             </TabsTrigger>
           ))}
         </TabsList>
