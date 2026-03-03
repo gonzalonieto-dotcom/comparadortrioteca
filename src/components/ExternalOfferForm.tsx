@@ -1,10 +1,11 @@
-import { useState } from "react";
-import { Offer, Linkage, operationDefaults } from "@/data/mortgageData";
+import { useState, useRef, useCallback } from "react";
+import { Offer, Linkage } from "@/data/mortgageData";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Trash2, Building2 } from "lucide-react";
+import { Plus, Trash2, Building2, Upload, FileCheck, Loader2 } from "lucide-react";
+import { toast } from "@/hooks/use-toast";
 
 interface ExternalOfferFormProps {
   onAddOffer: (offer: Offer) => void;
@@ -26,6 +27,9 @@ const ExternalOfferForm = ({ onAddOffer }: ExternalOfferFormProps) => {
   const [baseTIN, setBaseTIN] = useState("");
   const [amortFeePct, setAmortFeePct] = useState("0");
   const [linkages, setLinkages] = useState<{ label: string; weight: string; cost: string }[]>([]);
+  const [pdfParsing, setPdfParsing] = useState(false);
+  const [pdfFileName, setPdfFileName] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const addLinkage = () => {
     setLinkages((prev) => [...prev, { label: "", weight: "0", cost: "0" }]);
@@ -40,6 +44,68 @@ const ExternalOfferForm = ({ onAddOffer }: ExternalOfferFormProps) => {
       prev.map((l, i) => (i === idx ? { ...l, [field]: value } : l))
     );
   };
+
+  const handlePdfFile = useCallback(async (file: File) => {
+    if (!file.type.includes("pdf")) {
+      toast({ title: "Solo se aceptan archivos PDF", variant: "destructive" });
+      return;
+    }
+    setPdfParsing(true);
+    setPdfFileName(file.name);
+
+    try {
+      const buffer = await file.arrayBuffer();
+      const base64 = btoa(String.fromCharCode(...new Uint8Array(buffer)));
+
+      const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
+      const res = await fetch(
+        `https://${projectId}.supabase.co/functions/v1/parse-offer-pdf`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ pdf_base64: base64 }),
+        }
+      );
+
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.error || "Error al procesar el PDF");
+      }
+
+      const { data } = await res.json();
+
+      setBankName(data.bank_name || "");
+      setType(data.type || "Fijo");
+      setBaseTIN(String(data.base_tin ?? ""));
+      setAmortFeePct(String(data.amortization_fee_pct ?? "0"));
+
+      if (data.linkages?.length) {
+        setLinkages(
+          data.linkages.map((l: any) => ({
+            label: l.label || "",
+            weight: String(l.discount_weight_pct ?? "0"),
+            cost: String(l.annual_cost ?? "0"),
+          }))
+        );
+      }
+
+      toast({ title: "Datos extraídos del PDF", description: `Banco: ${data.bank_name}` });
+    } catch (err: any) {
+      toast({ title: "Error al leer el PDF", description: err.message, variant: "destructive" });
+      setPdfFileName(null);
+    } finally {
+      setPdfParsing(false);
+    }
+  }, []);
+
+  const handleDrop = useCallback(
+    (e: React.DragEvent) => {
+      e.preventDefault();
+      const file = e.dataTransfer.files[0];
+      if (file) handlePdfFile(file);
+    },
+    [handlePdfFile]
+  );
 
   const handleSubmit = () => {
     if (!bankName || !baseTIN) return;
@@ -78,6 +144,7 @@ const ExternalOfferForm = ({ onAddOffer }: ExternalOfferFormProps) => {
     setBaseTIN("");
     setAmortFeePct("0");
     setLinkages([]);
+    setPdfFileName(null);
     setOpen(false);
   };
 
@@ -90,7 +157,7 @@ const ExternalOfferForm = ({ onAddOffer }: ExternalOfferFormProps) => {
         <div className="flex flex-col items-center gap-2 text-muted-foreground group-hover:text-primary transition-colors">
           <Building2 className="h-8 w-8" />
           <span className="font-medium text-sm">Incorporar ofertas por fuera de Trioteca</span>
-          <span className="text-xs">Añade la oferta de tu banco para compararla</span>
+          <span className="text-xs">Arrastra un PDF o introduce los datos a mano para comparar</span>
         </div>
       </button>
     );
@@ -105,6 +172,49 @@ const ExternalOfferForm = ({ onAddOffer }: ExternalOfferFormProps) => {
         <Button variant="ghost" size="sm" onClick={() => setOpen(false)}>
           Cancelar
         </Button>
+      </div>
+
+      {/* PDF Dropzone */}
+      <div
+        onDragOver={(e) => e.preventDefault()}
+        onDrop={handleDrop}
+        onClick={() => fileInputRef.current?.click()}
+        className={`mb-5 border-2 border-dashed rounded-lg p-4 text-center cursor-pointer transition-colors ${
+          pdfParsing
+            ? "border-primary/50 bg-primary/5"
+            : pdfFileName
+            ? "border-primary/40 bg-primary/5"
+            : "border-muted-foreground/25 hover:border-primary/40 hover:bg-muted/30"
+        }`}
+      >
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept=".pdf"
+          className="hidden"
+          onChange={(e) => {
+            const file = e.target.files?.[0];
+            if (file) handlePdfFile(file);
+          }}
+        />
+        {pdfParsing ? (
+          <div className="flex flex-col items-center gap-2 text-primary">
+            <Loader2 className="h-6 w-6 animate-spin" />
+            <span className="text-xs font-medium">Extrayendo datos del PDF...</span>
+          </div>
+        ) : pdfFileName ? (
+          <div className="flex flex-col items-center gap-1 text-primary">
+            <FileCheck className="h-6 w-6" />
+            <span className="text-xs font-medium">{pdfFileName}</span>
+            <span className="text-[10px] text-muted-foreground">Datos pre-rellenados. Ajusta lo que necesites.</span>
+          </div>
+        ) : (
+          <div className="flex flex-col items-center gap-1 text-muted-foreground">
+            <Upload className="h-6 w-6" />
+            <span className="text-xs font-medium">Arrastra tu PDF de oferta bancaria aquí</span>
+            <span className="text-[10px]">o haz clic para seleccionarlo</span>
+          </div>
+        )}
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-5">
