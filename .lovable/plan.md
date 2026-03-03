@@ -1,33 +1,31 @@
 
 
-# Cambios en el editor de ofertas
+# Incorporar oferta externa (PDF + manual) en vista del cliente
 
-## 1. Eliminar campo "TIN sin bonificar" del UI
-- Quitar el campo read-only (líneas 207-218 de OfferEditor.tsx)
-- La lógica de conversión al guardar/cargar en OperationEditor.tsx se mantiene intacta (el motor de cálculo del cliente lo necesita internamente)
-- Solo desaparece de la vista del gestor
+## Qué hacer
+Añadir en `ClientComparison.tsx` el componente `ExternalOfferForm` mejorado para que el cliente pueda:
+1. **Arrastrar un PDF** de su oferta bancaria → se extraen datos automáticamente vía la edge function existente `parse-offer-pdf`
+2. **Rellenar a mano** los campos como ya funciona hoy
 
-## 2. PdfDropZone: estado persistente tras carga
-- Después de extraer datos, en vez de volver a "idle" tras 3 segundos, mostrar permanentemente un estado "PDF cargado" con icono de check y nombre del archivo
-- Permitir arrastrar otro PDF para reemplazar
+La oferta se añade al estado local `offers[]` y se recalcula la comparativa. No se guarda en base de datos ni afecta al panel del gestor — es puramente client-side para que el cliente vea si su oferta es mejor o peor.
 
-## 3. Alinear campos del formulario
-- Reorganizar la grid: fila 1 = Banco + Tipo (2 cols), fila 2 = TIN bonificado + Cuota mensual (2 cols), fila 3 = Comisión amort. + Gastos iniciales + Coste cuenta + Euríbor (4 cols)
+## Cambios
 
-## 4. Campos adaptativos para tipo Mixto
-Cuando el tipo es "Mixto", los campos principales cambian:
-- Label "TIN bonificado" → "TIN bonificado primer tramo"
-- La cuota mensual se calcula con el TIN del tramo fijo (primer periodo)
-- Nuevo campo editable: **"Diferencial sobre Euríbor"** (spread del tramo variable)
-- El MixedPeriodEditor actual se simplifica o se alimenta desde estos campos
-- El PDF extraction también intenta extraer el diferencial
+### 1. `src/components/ExternalOfferForm.tsx`
+- Añadir una mini dropzone (reutilizando la lógica de `PdfDropZone` pero simplificada) dentro del formulario, arriba de los campos manuales
+- Al soltar un PDF, llamar a `parse-offer-pdf` y pre-rellenar los campos del formulario (banco, TIN, tipo, bonificaciones)
+- El cliente puede luego ajustar manualmente antes de confirmar
+- Mantener el flujo manual intacto como alternativa
 
-## 5. Actualizar edge function parse-offer-pdf
-- Añadir al prompt que extraiga el `spread_over_euribor` como "diferencial" para ofertas mixtas
-- Ya existe en el schema de la tool, solo reforzar en el prompt
+### 2. `src/pages/ClientComparison.tsx`
+- Importar `ExternalOfferForm`
+- Añadir handler `handleAddExternalOffer` que agrega la oferta al estado `offers`
+- Renderizar el componente debajo de la tabla de ofertas
+- ~10 líneas de código nuevo
 
-## Archivos a modificar
-- `src/components/admin/OfferEditor.tsx` — quitar TIN sin bonificar, alinear grid, campos mixto
-- `src/components/admin/PdfDropZone.tsx` — estado persistente "PDF cargado"
-- `supabase/functions/parse-offer-pdf/index.ts` — reforzar extracción diferencial
+### Lo que NO cambia
+- Backend: sin nuevas tablas, sin migraciones
+- Panel del gestor: sin cambios
+- Edge function `parse-offer-pdf`: se reutiliza tal cual
+- La oferta externa solo vive en el state local del cliente
 
