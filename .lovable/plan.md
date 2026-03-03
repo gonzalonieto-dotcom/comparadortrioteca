@@ -1,49 +1,33 @@
 
 
-# Extracción automática de datos de oferta bancaria desde PDF
+# Cambios en el editor de ofertas
 
-## Resumen
-Añadir una zona de drag-and-drop en el editor de ofertas donde el gestor pueda soltar un PDF de oferta bancaria. Un modelo de IA extraerá los campos relevantes (banco, tipo, TIN, bonificaciones, comisiones, etc.) y pre-rellenará el formulario. El gestor revisa y confirma.
+## 1. Eliminar campo "TIN sin bonificar" del UI
+- Quitar el campo read-only (líneas 207-218 de OfferEditor.tsx)
+- La lógica de conversión al guardar/cargar en OperationEditor.tsx se mantiene intacta (el motor de cálculo del cliente lo necesita internamente)
+- Solo desaparece de la vista del gestor
 
-## Arquitectura
+## 2. PdfDropZone: estado persistente tras carga
+- Después de extraer datos, en vez de volver a "idle" tras 3 segundos, mostrar permanentemente un estado "PDF cargado" con icono de check y nombre del archivo
+- Permitir arrastrar otro PDF para reemplazar
 
-```text
-┌─────────────────────┐     ┌──────────────────────┐     ┌─────────────┐
-│  OfferEditor UI     │     │  Edge Function        │     │  Lovable AI │
-│  (drag & drop PDF)  │────▶│  parse-offer-pdf      │────▶│  Gemini 2.5 │
-│                     │◀────│  (base64 → AI → JSON) │◀────│  Flash      │
-└─────────────────────┘     └──────────────────────┘     └─────────────┘
-```
+## 3. Alinear campos del formulario
+- Reorganizar la grid: fila 1 = Banco + Tipo (2 cols), fila 2 = TIN bonificado + Cuota mensual (2 cols), fila 3 = Comisión amort. + Gastos iniciales + Coste cuenta + Euríbor (4 cols)
 
-## Cambios
+## 4. Campos adaptativos para tipo Mixto
+Cuando el tipo es "Mixto", los campos principales cambian:
+- Label "TIN bonificado" → "TIN bonificado primer tramo"
+- La cuota mensual se calcula con el TIN del tramo fijo (primer periodo)
+- Nuevo campo editable: **"Diferencial sobre Euríbor"** (spread del tramo variable)
+- El MixedPeriodEditor actual se simplifica o se alimenta desde estos campos
+- El PDF extraction también intenta extraer el diferencial
 
-### 1. Nueva edge function: `supabase/functions/parse-offer-pdf/index.ts`
-- Recibe el PDF como base64 en el body
-- Envía al modelo `google/gemini-2.5-flash` (soporta PDFs/imágenes) via Lovable AI gateway
-- Prompt estructurado que pide extraer: `bank_name`, `type` (Fijo/Mixto/Variable), `base_tin`, `bonificaciones` (array con label, peso%, coste anual), `amortization_fee_pct`, `upfront_costs`, `monthly_account_cost`, `euribor_rate`, `advantages`
-- Devuelve JSON tipado que mapea directamente a `OfferFormData`
+## 5. Actualizar edge function parse-offer-pdf
+- Añadir al prompt que extraiga el `spread_over_euribor` como "diferencial" para ofertas mixtas
+- Ya existe en el schema de la tool, solo reforzar en el prompt
 
-### 2. Componente `src/components/admin/PdfDropZone.tsx`
-- Zona de drag-and-drop con estados: idle, dragging, processing, done/error
-- Acepta archivos `.pdf` (max ~10MB)
-- Convierte a base64 y llama a la edge function
-- Callback `onExtracted(data: Partial<OfferFormData>)` para rellenar el formulario
-
-### 3. Modificar `src/components/admin/OfferEditor.tsx`
-- Añadir `PdfDropZone` dentro de la card expandida, arriba del formulario (solo si los campos están vacíos o siempre visible como opción)
-- Al recibir datos extraídos, hacer merge con el estado actual del formulario
-- Mostrar toast de confirmación "Datos extraídos del PDF — revisa y ajusta"
-
-### 4. Config: `supabase/config.toml`
-- Añadir `[functions.parse-offer-pdf]` con `verify_jwt = false`
-
-## Detalle del prompt de extracción
-
-El prompt pedirá al modelo que analice el PDF y devuelva un JSON estricto con los campos de la oferta. Incluirá los nombres de bancos conocidos (`BANK_PRESETS`) y los tipos de bonificación esperados para mejorar la precisión del mapeo.
-
-## UX
-- La dropzone aparece como un recuadro punteado con icono de PDF dentro de cada card de oferta expandida
-- Mientras procesa: spinner + "Extrayendo datos del PDF..."
-- Al completar: los campos se rellenan automáticamente y se muestra un toast
-- El gestor puede editar cualquier campo después de la extracción
+## Archivos a modificar
+- `src/components/admin/OfferEditor.tsx` — quitar TIN sin bonificar, alinear grid, campos mixto
+- `src/components/admin/PdfDropZone.tsx` — estado persistente "PDF cargado"
+- `supabase/functions/parse-offer-pdf/index.ts` — reforzar extracción diferencial
 
