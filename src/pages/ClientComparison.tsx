@@ -12,6 +12,7 @@ import ConsiderationCards from "@/components/ConsiderationCards";
 import FAQCopilot from "@/components/FAQCopilot";
 import AmortizationTable from "@/components/AmortizationTable";
 import AdvanceModal from "@/components/AdvanceModal";
+import ExternalOfferForm from "@/components/ExternalOfferForm";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { ChevronDown } from "lucide-react";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -122,6 +123,7 @@ const ClientComparison = () => {
   }, []);
 
   const handleDeleteOffer = useCallback((offerId: string) => setOffers((prev) => prev.filter((o) => o.id !== offerId)), []);
+  const handleAddExternalOffer = useCallback((offer: Offer) => setOffers((prev) => [...prev, offer]), []);
 
   const computedOffers: ComputedOffer[] = useMemo(
     () => defaults ? offers.map((o) => computeOffer(o, defaults)) : [],
@@ -178,6 +180,9 @@ const ClientComparison = () => {
               onAdvance={(offerId) => { setAdvanceOfferId(offerId); setAdvanceOpen(true); }}
               onDeleteOffer={handleDeleteOffer}
             />
+            <div className="mt-4">
+              <ExternalOfferForm onAddOffer={handleAddExternalOffer} />
+            </div>
           </section>
 
           <section>
