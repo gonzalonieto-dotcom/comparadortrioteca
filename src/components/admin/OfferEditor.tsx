@@ -199,22 +199,12 @@ const OfferEditor = ({ offer, index, onChange, onDelete, loanAmount, termYears, 
             </div>
 
             {/* Financial details */}
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+            <div className="grid grid-cols-2 gap-3">
               <div>
-                <Label className="text-xs">TIN bonificado %</Label>
-                <Input type="number" step="0.01" value={offer.base_tin} onChange={(e) => update({ base_tin: +e.target.value })} />
-              </div>
-              <div>
-                <Label className="text-xs flex items-center gap-1">
-                  TIN sin bonificar %
-                  <Calculator className="h-3 w-3 text-muted-foreground" />
-                  <span className="text-muted-foreground">(auto)</span>
+                <Label className="text-xs">
+                  {offer.type === "Mixto" ? "TIN bonificado primer tramo %" : "TIN bonificado %"}
                 </Label>
-                <Input
-                  readOnly
-                  value={(offer.base_tin + offer.linkages.filter(l => l.is_active_default).reduce((s, l) => s + l.discount_weight_pct, 0)).toFixed(2) + " %"}
-                  className="bg-muted cursor-default"
-                />
+                <Input type="number" step="0.01" value={offer.base_tin} onChange={(e) => update({ base_tin: +e.target.value })} />
               </div>
               <div>
                 <Label className="text-xs flex items-center gap-1">
@@ -229,6 +219,28 @@ const OfferEditor = ({ offer, index, onChange, onDelete, loanAmount, termYears, 
                 />
               </div>
             </div>
+
+            {/* Mixto: diferencial sobre Euríbor */}
+            {offer.type === "Mixto" && (
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label className="text-xs">Diferencial sobre Euríbor %</Label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    value={offer.mixedPeriods?.[0]?.spread_over_euribor ?? ""}
+                    onChange={(e) => {
+                      const spread = e.target.value ? +e.target.value : null;
+                      const periods = offer.mixedPeriods.length > 0
+                        ? offer.mixedPeriods.map((p, i) => i === 0 ? { ...p, spread_over_euribor: spread } : p)
+                        : [{ from_year: 1, to_year: 30, fixed_tin: null, spread_over_euribor: spread }];
+                      update({ mixedPeriods: periods });
+                    }}
+                    placeholder="Ej: 0.75"
+                  />
+                </div>
+              </div>
+            )}
 
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
               <div>

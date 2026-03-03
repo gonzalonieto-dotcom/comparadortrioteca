@@ -1,5 +1,5 @@
 import { useState, useCallback } from "react";
-import { FileUp, Loader2, CheckCircle2, AlertCircle } from "lucide-react";
+import { FileUp, Loader2, CheckCircle2, AlertCircle, FileText } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import type { OfferFormData } from "./OfferEditor";
 import type { LinkageFormData } from "./LinkageEditor";
@@ -13,6 +13,7 @@ interface Props {
 const PdfDropZone = ({ onExtracted }: Props) => {
   const [status, setStatus] = useState<Status>("idle");
   const [errorMsg, setErrorMsg] = useState("");
+  const [fileName, setFileName] = useState("");
 
   const processFile = useCallback(async (file: File) => {
     if (file.type !== "application/pdf") {
@@ -28,6 +29,7 @@ const PdfDropZone = ({ onExtracted }: Props) => {
 
     setStatus("processing");
     setErrorMsg("");
+    setFileName(file.name);
 
     try {
       const buffer = await file.arrayBuffer();
@@ -48,7 +50,6 @@ const PdfDropZone = ({ onExtracted }: Props) => {
       const extracted = data?.data;
       if (!extracted) throw new Error("No se recibieron datos");
 
-      // Map to OfferFormData
       const patch: Partial<OfferFormData> = {
         bank_name: extracted.bank_name || "",
         type: extracted.type || "Fijo",
@@ -80,9 +81,6 @@ const PdfDropZone = ({ onExtracted }: Props) => {
 
       setStatus("done");
       onExtracted(patch);
-
-      // Reset after 3s
-      setTimeout(() => setStatus("idle"), 3000);
     } catch (e: any) {
       console.error("PDF extraction error:", e);
       setStatus("error");
@@ -93,7 +91,6 @@ const PdfDropZone = ({ onExtracted }: Props) => {
   const handleDrop = useCallback(
     (e: React.DragEvent) => {
       e.preventDefault();
-      setStatus("idle");
       const file = e.dataTransfer.files[0];
       if (file) processFile(file);
     },
@@ -115,19 +112,21 @@ const PdfDropZone = ({ onExtracted }: Props) => {
       : status === "processing"
       ? "border-muted-foreground/40"
       : status === "done"
-      ? "border-primary bg-primary/5"
+      ? "border-primary/50 bg-primary/5"
       : status === "error"
       ? "border-destructive bg-destructive/5"
       : "border-muted-foreground/25 hover:border-primary/50";
 
   return (
     <label
-      className={`relative flex flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed p-4 cursor-pointer transition-colors ${borderColor}`}
+      className={`relative flex items-center justify-center gap-2 rounded-lg border-2 border-dashed p-3 cursor-pointer transition-colors ${borderColor}`}
       onDragOver={(e) => {
         e.preventDefault();
-        setStatus("dragging");
+        if (status !== "processing") setStatus("dragging");
       }}
-      onDragLeave={() => setStatus("idle")}
+      onDragLeave={() => {
+        if (status === "dragging") setStatus(fileName ? "done" : "idle");
+      }}
       onDrop={handleDrop}
     >
       <input
@@ -139,22 +138,26 @@ const PdfDropZone = ({ onExtracted }: Props) => {
 
       {status === "processing" ? (
         <>
-          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+          <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
           <span className="text-xs text-muted-foreground">Extrayendo datos del PDF…</span>
         </>
       ) : status === "done" ? (
         <>
-          <CheckCircle2 className="h-6 w-6 text-primary" />
-          <span className="text-xs text-primary">Datos extraídos — revisa y ajusta</span>
+          <FileText className="h-5 w-5 text-primary" />
+          <span className="text-xs text-primary flex items-center gap-1">
+            <CheckCircle2 className="h-3.5 w-3.5" />
+            {fileName}
+          </span>
+          <span className="text-xs text-muted-foreground ml-auto">Arrastra otro para reemplazar</span>
         </>
       ) : status === "error" ? (
         <>
-          <AlertCircle className="h-6 w-6 text-destructive" />
+          <AlertCircle className="h-5 w-5 text-destructive" />
           <span className="text-xs text-destructive">{errorMsg}</span>
         </>
       ) : (
         <>
-          <FileUp className="h-6 w-6 text-muted-foreground" />
+          <FileUp className="h-5 w-5 text-muted-foreground" />
           <span className="text-xs text-muted-foreground">
             Arrastra un PDF de oferta bancaria o haz clic para seleccionar
           </span>

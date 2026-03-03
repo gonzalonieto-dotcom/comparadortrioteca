@@ -12,6 +12,11 @@ Bancos conocidos: CaixaBank, Ibercaja, BBVA, Kutxabank, Bankinter.
 Tipos de hipoteca: Fijo, Mixto, Variable.
 Vinculaciones conocidas: "Domiciliación de nómina", "Seguro hogar", "Seguro de vida".
 
+IMPORTANTE para hipotecas de tipo Mixto o Variable:
+- Extrae siempre el diferencial sobre Euríbor (spread_over_euribor) cuando esté disponible.
+- Para Mixto, identifica el TIN fijo del primer tramo y el diferencial del tramo variable.
+- El campo base_tin debe contener el TIN bonificado (con descuentos de vinculaciones ya aplicados).
+
 Usa la herramienta extract_offer_data para devolver los datos extraídos.`;
 
 serve(async (req) => {
