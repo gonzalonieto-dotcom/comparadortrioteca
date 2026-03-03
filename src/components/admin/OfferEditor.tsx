@@ -45,6 +45,8 @@ interface Props {
   loanAmount?: number;
   termYears?: number;
   appraisalCost?: number;
+  expanded?: boolean;
+  onToggle?: () => void;
 }
 
 /** Convert form data to the calc engine's Offer type */
@@ -88,8 +90,10 @@ function toCalcOffer(f: OfferFormData): Offer {
   };
 }
 
-const OfferEditor = ({ offer, index, onChange, onDelete, loanAmount, termYears, appraisalCost }: Props) => {
-  const [expanded, setExpanded] = useState(true);
+const OfferEditor = ({ offer, index, onChange, onDelete, loanAmount, termYears, appraisalCost, expanded: expandedProp, onToggle }: Props) => {
+  const [expandedLocal, setExpandedLocal] = useState(true);
+  const expanded = expandedProp !== undefined ? expandedProp : expandedLocal;
+  const toggleExpanded = onToggle || (() => setExpandedLocal(!expandedLocal));
 
   const update = (patch: Partial<OfferFormData>) => onChange({ ...offer, ...patch });
 
@@ -128,7 +132,7 @@ const OfferEditor = ({ offer, index, onChange, onDelete, loanAmount, termYears, 
   return (
     <div className="space-y-4">
       <Card>
-        <CardHeader className="cursor-pointer" onClick={() => setExpanded(!expanded)}>
+        <CardHeader className="cursor-pointer" onClick={toggleExpanded}>
           <div className="flex items-center justify-between">
             <CardTitle className="text-base flex items-center gap-2">
               <span className="w-3 h-3 rounded-full inline-block" style={{ backgroundColor: offer.logo_color }} />
@@ -177,7 +181,7 @@ const OfferEditor = ({ offer, index, onChange, onDelete, loanAmount, termYears, 
             </div>
 
             {/* Financial details */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
               <div>
                 <Label className="text-xs">TIN bonificado %</Label>
                 <Input type="number" step="0.01" value={offer.base_tin} onChange={(e) => update({ base_tin: +e.target.value })} />
@@ -191,18 +195,6 @@ const OfferEditor = ({ offer, index, onChange, onDelete, loanAmount, termYears, 
                 <Input
                   readOnly
                   value={(offer.base_tin + offer.linkages.filter(l => l.is_active_default).reduce((s, l) => s + l.discount_weight_pct, 0)).toFixed(2) + " %"}
-                  className="bg-muted cursor-default"
-                />
-              </div>
-              <div>
-                <Label className="text-xs flex items-center gap-1">
-                  TAE estimada %
-                  <Calculator className="h-3 w-3 text-muted-foreground" />
-                  <span className="text-muted-foreground">(auto)</span>
-                </Label>
-                <Input
-                  readOnly
-                  value={isFinite(computedTAE) ? computedTAE.toFixed(2) + " %" : "—"}
                   className="bg-muted cursor-default"
                 />
               </div>
@@ -247,30 +239,19 @@ const OfferEditor = ({ offer, index, onChange, onDelete, loanAmount, termYears, 
         )}
       </Card>
 
-      {/* Separate card for advantages, considerations & linkages */}
       {expanded && (
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Ventajas, Consideraciones y Vinculaciones</CardTitle>
+            <CardTitle className="text-base">Ventajas y Vinculaciones</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="grid md:grid-cols-2 gap-3">
-              <div>
-                <Label className="text-xs">Ventajas (una por línea)</Label>
-                <Textarea
-                  rows={4}
-                  value={offer.advantages.join("\n")}
-                  onChange={(e) => update({ advantages: e.target.value.split("\n").filter(Boolean) })}
-                />
-              </div>
-              <div>
-                <Label className="text-xs">Consideraciones (una por línea)</Label>
-                <Textarea
-                  rows={4}
-                  value={offer.considerations.join("\n")}
-                  onChange={(e) => update({ considerations: e.target.value.split("\n").filter(Boolean) })}
-                />
-              </div>
+            <div>
+              <Label className="text-xs">Ventajas (una por línea)</Label>
+              <Textarea
+                rows={4}
+                value={offer.advantages.join("\n")}
+                onChange={(e) => update({ advantages: e.target.value.split("\n").filter(Boolean) })}
+              />
             </div>
             <LinkageEditor linkages={offer.linkages} onChange={(linkages) => update({ linkages })} />
           </CardContent>
