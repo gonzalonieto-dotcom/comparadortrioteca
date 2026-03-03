@@ -157,7 +157,7 @@ const DesktopTable = ({ computedOffers, onToggleLinkage, recommendedId, onAdvanc
               return (
                 <tr
                   key={o.id}
-                  className={`border-b last:border-b-0 transition-colors hover:bg-muted/30 ${o.id === recommendedId ? "bg-primary/[0.03]" : ""}`}
+                  className={`border-b last:border-b-0 transition-colors hover:bg-muted/30 ${o.isExternal ? "bg-destructive/5" : o.id === recommendedId ? "bg-primary/[0.03]" : ""}`}
                 >
                   <td className="px-5 py-4">
                     <div className="flex items-center gap-2.5">
@@ -184,7 +184,16 @@ const DesktopTable = ({ computedOffers, onToggleLinkage, recommendedId, onAdvanc
                   </td>
                   <td className="px-5 py-4">
                     {o.isExternal ? (
-                      <span className="text-xs text-muted-foreground italic">Solo lectura</span>
+                      <div className="space-y-1">
+                        {o.linkages.map((l) => (
+                          <div key={l.id} className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                            <span className="h-1.5 w-1.5 rounded-full bg-muted-foreground/50 shrink-0" />
+                            <span>{l.label}</span>
+                            <span className="text-[10px]">({l.discountWeightPct} pp{l.annualCostEUR > 0 ? `, ${fmt(l.annualCostEUR)}/año` : ""})</span>
+                          </div>
+                        ))}
+                        {o.linkages.length === 0 && <span className="text-xs text-muted-foreground italic">Sin bonificaciones</span>}
+                      </div>
                     ) : (
                       <InlineLinkages offer={o} onToggle={(lid) => onToggleLinkage(o.id, lid)} />
                     )}
@@ -229,7 +238,7 @@ const MobileCards = ({ computedOffers, onToggleLinkage, recommendedId, onAdvance
         return (
           <div
             key={o.id}
-            className={`bg-card rounded-xl border overflow-hidden ${o.id === recommendedId ? "border-primary ring-1 ring-primary/20" : ""}`}
+            className={`rounded-xl border overflow-hidden ${o.isExternal ? "bg-destructive/5 border-destructive/20" : "bg-card"} ${o.id === recommendedId ? "border-primary ring-1 ring-primary/20" : ""}`}
           >
             {/* Header */}
             <div className="px-4 py-3 flex items-center justify-between border-b bg-muted/30">
@@ -266,7 +275,16 @@ const MobileCards = ({ computedOffers, onToggleLinkage, recommendedId, onAdvance
             <div className="px-4 py-3 border-b">
               <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-2">Bonificaciones</p>
               {o.isExternal ? (
-                <span className="text-xs text-muted-foreground italic">Solo lectura</span>
+                <div className="space-y-1.5">
+                  {o.linkages.map((l) => (
+                    <div key={l.id} className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                      <span className="h-1.5 w-1.5 rounded-full bg-muted-foreground/50 shrink-0" />
+                      <span>{l.label}</span>
+                      <span className="text-[10px]">({l.discountWeightPct} pp{l.annualCostEUR > 0 ? `, ${fmt(l.annualCostEUR)}/año` : ""})</span>
+                    </div>
+                  ))}
+                  {o.linkages.length === 0 && <span className="text-xs text-muted-foreground italic">Sin bonificaciones</span>}
+                </div>
               ) : (
                 <div className="space-y-2">
                   {o.linkages.map((l) => (
