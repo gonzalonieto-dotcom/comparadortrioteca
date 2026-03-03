@@ -6,7 +6,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Trash2, ChevronDown, ChevronUp, Calculator } from "lucide-react";
+import { toast } from "sonner";
 import LinkageEditor, { type LinkageFormData, PRESET_LINKAGES } from "./LinkageEditor";
+import PdfDropZone from "./PdfDropZone";
 import MixedPeriodEditor, { type MixedPeriodFormData } from "./MixedPeriodEditor";
 import type { Offer, OperationDefaults, Linkage, MixedRatePeriod } from "@/data/mortgageData";
 import { calcMonthlyPayment, calcEstimatedTAE, generateAmortizationSchedule, calcBonifiedTIN } from "@/lib/mortgageCalc";
@@ -97,6 +99,19 @@ const OfferEditor = ({ offer, index, onChange, onDelete, loanAmount, termYears, 
 
   const update = (patch: Partial<OfferFormData>) => onChange({ ...offer, ...patch });
 
+  const handlePdfExtracted = (data: Partial<OfferFormData>) => {
+    // Merge extracted data, setting logo_color from bank preset if available
+    const preset = data.bank_name ? BANK_PRESETS[data.bank_name] : undefined;
+    onChange({
+      ...offer,
+      ...data,
+      logo_color: preset?.color || offer.logo_color,
+      considerations: offer.considerations, // preserve
+      sort_order: offer.sort_order,
+    });
+    toast.success("Datos extraídos del PDF — revisa y ajusta");
+  };
+
   const handleBankChange = (bankName: string) => {
     const preset = BANK_PRESETS[bankName];
     update({ bank_name: bankName, logo_color: preset?.color || offer.logo_color });
@@ -149,6 +164,9 @@ const OfferEditor = ({ offer, index, onChange, onDelete, loanAmount, termYears, 
         </CardHeader>
         {expanded && (
           <CardContent className="space-y-4">
+            {/* PDF Drop Zone */}
+            <PdfDropZone onExtracted={handlePdfExtracted} />
+
             {/* Bank + Type */}
             <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
               <div>
