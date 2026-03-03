@@ -27,6 +27,7 @@ const OperationEditor = () => {
   const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
   const [saving, setSaving] = useState(false);
+  const [expandedIndex, setExpandedIndex] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [euriborRate, setEuriborRate] = useState<number | null>(null);
 
@@ -208,14 +209,18 @@ const OperationEditor = () => {
       discount_weight_pct: 0,
       annual_cost: 0,
     }));
-    setOffers((prev) => [...prev, {
-      bank_name: "", logo_color: "hsl(200, 70%, 50%)", type: "Fijo",
-      base_tin: 0, estimated_tae: 0, monthly_payment: 0,
-      amortization_fee_pct: 0, upfront_costs: 0, monthly_account_cost: 0,
-      euribor_rate: euriborRate, advantages: [], considerations: [],
-      sort_order: prev.length,
-      linkages: defaultLinkages, mixedPeriods: [],
-    }]);
+    setOffers((prev) => {
+      const newOffers = [...prev, {
+        bank_name: "", logo_color: "hsl(200, 70%, 50%)", type: "Fijo",
+        base_tin: 0, estimated_tae: 0, monthly_payment: 0,
+        amortization_fee_pct: 0, upfront_costs: 0, monthly_account_cost: 0,
+        euribor_rate: euriborRate, advantages: [], considerations: [],
+        sort_order: prev.length,
+        linkages: defaultLinkages, mixedPeriods: [],
+      }];
+      setExpandedIndex(newOffers.length - 1);
+      return newOffers;
+    });
   };
 
   const copyLink = () => {
@@ -291,8 +296,13 @@ const OperationEditor = () => {
             key={offer.id || `new-${i}`}
             offer={offer}
             index={i}
+            expanded={expandedIndex === i}
+            onToggle={() => setExpandedIndex(expandedIndex === i ? null : i)}
             onChange={(updated) => setOffers((prev) => prev.map((o, idx) => idx === i ? updated : o))}
-            onDelete={() => setOffers((prev) => prev.filter((_, idx) => idx !== i))}
+            onDelete={() => {
+              setOffers((prev) => prev.filter((_, idx) => idx !== i));
+              setExpandedIndex(null);
+            }}
             loanAmount={op.loan_amount}
             termYears={op.term_years}
             appraisalCost={op.appraisal_cost}
