@@ -270,10 +270,10 @@ const OfferEditor = ({ offer, index, onChange, onDelete, loanAmount, termYears, 
             {/* Bonificaciones (collapsible dentro del formulario) */}
             <Collapsible>
               <CollapsibleTrigger asChild>
-                <div className="flex items-center justify-between cursor-pointer py-2 border-t pt-4 mt-2">
-                  <Label className="text-sm font-semibold cursor-pointer">Bonificaciones</Label>
+                <button type="button" className="flex w-full items-center justify-between cursor-pointer py-2 border-t pt-4 mt-2">
+                  <span className="text-sm font-semibold">Bonificaciones</span>
                   <ChevronDown className="h-4 w-4 text-muted-foreground" />
-                </div>
+                </button>
               </CollapsibleTrigger>
               <CollapsibleContent className="pt-2">
                 <LinkageEditor linkages={offer.linkages} onChange={(linkages) => update({ linkages })} />
