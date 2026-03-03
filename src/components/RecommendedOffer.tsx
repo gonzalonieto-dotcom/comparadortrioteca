@@ -2,6 +2,7 @@ import { ComputedOffer } from "@/lib/mortgageCalc";
 import { Star } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { InfoTooltip } from "@/components/InfoTooltip";
+import { BankLogo } from "@/lib/bankLogos";
 
 interface RecommendedOfferProps {
   computed: ComputedOffer;
@@ -32,8 +33,7 @@ const RecommendedOffer = ({ computed, savingsVsNext }: RecommendedOfferProps) =>
         <div className="space-y-4">
           <div>
             <div className="flex items-center gap-2 mb-1">
-              <div className="w-3 h-3 rounded-full" style={{ backgroundColor: o.logoColor }} />
-              <span className="font-semibold text-lg text-card-foreground">{o.bankName}</span>
+              <BankLogo bankName={o.bankName} logoColor={o.logoColor} size="lg" />
             </div>
             <Badge variant="secondary" className="text-xs">{o.type}</Badge>
           </div>
@@ -57,14 +57,16 @@ const RecommendedOffer = ({ computed, savingsVsNext }: RecommendedOfferProps) =>
             <p className="text-xs text-muted-foreground mb-1">Comisión amortización</p>
             <p className="text-sm font-medium text-accent">{amortText}</p>
           </div>
-          <div>
-            <p className="text-xs text-muted-foreground mb-1">Bonificaciones ({activeLinkages.length})</p>
-            <div className="flex flex-wrap gap-1.5">
-              {activeLinkages.map((v) => (
-                <Badge key={v.id} variant="outline" className="text-xs font-normal">{v.label}</Badge>
-              ))}
+          {!o.isExternal && (
+            <div>
+              <p className="text-xs text-muted-foreground mb-1">Bonificaciones ({activeLinkages.length})</p>
+              <div className="flex flex-wrap gap-1.5">
+                {activeLinkages.map((v) => (
+                  <Badge key={v.id} variant="outline" className="text-xs font-normal">{v.label}</Badge>
+                ))}
+              </div>
             </div>
-          </div>
+          )}
           <div>
             <p className="text-xs text-muted-foreground mb-1">Coste total aproximado</p>
             <p className="text-lg font-semibold text-card-foreground">{fmt(computed.totalCost)}</p>

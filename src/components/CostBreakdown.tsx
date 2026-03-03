@@ -1,4 +1,5 @@
 import { ComputedOffer } from "@/lib/mortgageCalc";
+import { BankLogo } from "@/lib/bankLogos";
 
 interface CostBreakdownProps {
   computedOffers: ComputedOffer[];
@@ -18,8 +19,7 @@ const CostBreakdown = ({ computedOffers }: CostBreakdownProps) => {
           className={`bg-card rounded-xl border p-5 ${i === 0 ? "border-primary ring-1 ring-primary/20" : ""}`}
         >
           <div className="flex items-center gap-2 mb-4">
-            <div className="w-3 h-3 rounded-full" style={{ backgroundColor: co.offer.logoColor }} />
-            <span className="font-medium text-card-foreground">{co.offer.bankName}</span>
+            <BankLogo bankName={co.offer.bankName} logoColor={co.offer.logoColor} size="sm" />
             {i === 0 && <span className="ml-auto text-xs font-medium text-accent">Menor coste</span>}
           </div>
           <div className="space-y-3">

@@ -22,6 +22,7 @@ import { Button } from "@/components/ui/button";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { InfoTooltip } from "@/components/InfoTooltip";
 import { Switch } from "@/components/ui/switch";
+import { BankLogo } from "@/lib/bankLogos";
 
 interface OfferTableProps {
   computedOffers: ComputedOffer[];
@@ -160,8 +161,7 @@ const DesktopTable = ({ computedOffers, onToggleLinkage, recommendedId, onAdvanc
                 >
                   <td className="px-5 py-4">
                     <div className="flex items-center gap-2.5">
-                      <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: o.logoColor }} />
-                      <span className="font-medium text-card-foreground">{o.bankName}</span>
+                      <BankLogo bankName={o.bankName} logoColor={o.logoColor} size="sm" />
                       {o.id === recommendedId && <Star className="h-4 w-4 text-primary fill-primary" />}
                     </div>
                   </td>
@@ -183,19 +183,24 @@ const DesktopTable = ({ computedOffers, onToggleLinkage, recommendedId, onAdvanc
                     <MonthlyWithInsurance co={co} />
                   </td>
                   <td className="px-5 py-4">
-                    <InlineLinkages offer={o} onToggle={(lid) => onToggleLinkage(o.id, lid)} />
+                    {o.isExternal ? (
+                      <span className="text-xs text-muted-foreground italic">Solo lectura</span>
+                    ) : (
+                      <InlineLinkages offer={o} onToggle={(lid) => onToggleLinkage(o.id, lid)} />
+                    )}
                   </td>
                   <td className="px-5 py-4 text-sm text-card-foreground">
                     {o.amortizationFeePct === 0 ? "0 %" : `${o.amortizationFeePct} %`}
                   </td>
                   <td className="px-5 py-4">
                     <div className="flex items-center gap-1.5">
-                      <Button size="sm" variant="outline" className="gap-1.5 text-xs" onClick={() => onAdvance?.(o.id)}>
-                        Avanzar <ArrowRight className="h-3.5 w-3.5" />
-                      </Button>
-                      {o.isExternal && (
+                      {o.isExternal ? (
                         <Button size="sm" variant="ghost" className="h-8 w-8 p-0" onClick={() => onDeleteOffer?.(o.id)}>
                           <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                        </Button>
+                      ) : (
+                        <Button size="sm" variant="outline" className="gap-1.5 text-xs" onClick={() => onAdvance?.(o.id)}>
+                          Avanzar <ArrowRight className="h-3.5 w-3.5" />
                         </Button>
                       )}
                     </div>
@@ -229,8 +234,7 @@ const MobileCards = ({ computedOffers, onToggleLinkage, recommendedId, onAdvance
             {/* Header */}
             <div className="px-4 py-3 flex items-center justify-between border-b bg-muted/30">
               <div className="flex items-center gap-2">
-                <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: o.logoColor }} />
-                <span className="font-semibold text-card-foreground">{o.bankName}</span>
+                <BankLogo bankName={o.bankName} logoColor={o.logoColor} size="sm" />
                 {o.id === recommendedId && <Star className="h-3.5 w-3.5 text-primary fill-primary" />}
               </div>
               <Badge variant="secondary" className="text-xs">{o.type}</Badge>
@@ -261,25 +265,29 @@ const MobileCards = ({ computedOffers, onToggleLinkage, recommendedId, onAdvance
             {/* Bonificaciones */}
             <div className="px-4 py-3 border-b">
               <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-2">Bonificaciones</p>
-              <div className="space-y-2">
-                {o.linkages.map((l) => (
-                  <div key={l.id} className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <Switch
-                        checked={l.isActive}
-                        onCheckedChange={() => onToggleLinkage(o.id, l.id)}
-                        className="scale-[0.65]"
-                      />
-                      <span className={`text-xs ${l.isActive ? "text-card-foreground font-medium" : "text-muted-foreground line-through"}`}>
-                        {l.label}
+              {o.isExternal ? (
+                <span className="text-xs text-muted-foreground italic">Solo lectura</span>
+              ) : (
+                <div className="space-y-2">
+                  {o.linkages.map((l) => (
+                    <div key={l.id} className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Switch
+                          checked={l.isActive}
+                          onCheckedChange={() => onToggleLinkage(o.id, l.id)}
+                          className="scale-[0.65]"
+                        />
+                        <span className={`text-xs ${l.isActive ? "text-card-foreground font-medium" : "text-muted-foreground line-through"}`}>
+                          {l.label}
+                        </span>
+                      </div>
+                      <span className="text-[10px] text-muted-foreground">
+                        {l.discountWeightPct} pp {l.annualCostEUR > 0 ? `· ${fmt(l.annualCostEUR)}/año` : ""}
                       </span>
                     </div>
-                    <span className="text-[10px] text-muted-foreground">
-                      {l.discountWeightPct} pp {l.annualCostEUR > 0 ? `· ${fmt(l.annualCostEUR)}/año` : ""}
-                    </span>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              )}
             </div>
 
             {/* Amortización + acciones */}
@@ -291,14 +299,15 @@ const MobileCards = ({ computedOffers, onToggleLinkage, recommendedId, onAdvance
                 </p>
               </div>
               <div className="flex gap-2">
-                {o.isExternal && (
+                {o.isExternal ? (
                   <Button size="sm" variant="ghost" className="h-8 w-8 p-0" onClick={() => onDeleteOffer?.(o.id)}>
                     <Trash2 className="h-4 w-4 text-destructive" />
                   </Button>
+                ) : (
+                  <Button size="sm" className="gap-1.5" onClick={() => onAdvance?.(o.id)}>
+                    Avanzar <ArrowRight className="h-3.5 w-3.5" />
+                  </Button>
                 )}
-                <Button size="sm" className="gap-1.5" onClick={() => onAdvance?.(o.id)}>
-                  Avanzar <ArrowRight className="h-3.5 w-3.5" />
-                </Button>
               </div>
             </div>
           </div>

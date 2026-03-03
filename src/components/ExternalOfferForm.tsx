@@ -126,7 +126,7 @@ const ExternalOfferForm = ({ onAddOffer }: ExternalOfferFormProps) => {
 
     const offer: Offer = {
       id,
-      bankName: bankName.trim(),
+      bankName: "Oferta externa",
       logoColor: color,
       type,
       baseTIN: parseFloat(baseTIN) || 0,

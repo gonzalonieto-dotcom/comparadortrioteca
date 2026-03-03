@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Trash2, ChevronDown, ChevronUp, Calculator } from "lucide-react";
+import { BankLogo } from "@/lib/bankLogos";
 import { toast } from "sonner";
 import LinkageEditor, { type LinkageFormData, PRESET_LINKAGES } from "./LinkageEditor";
 import PdfDropZone from "./PdfDropZone";
@@ -150,8 +151,7 @@ const OfferEditor = ({ offer, index, onChange, onDelete, loanAmount, termYears, 
         <CardHeader className="cursor-pointer" onClick={toggleExpanded}>
           <div className="flex items-center justify-between">
             <CardTitle className="text-base flex items-center gap-2">
-              <span className="w-3 h-3 rounded-full inline-block" style={{ backgroundColor: offer.logo_color }} />
-              {offer.bank_name || `Oferta ${index + 1}`}
+              <BankLogo bankName={offer.bank_name || `Oferta ${index + 1}`} logoColor={offer.logo_color} size="md" />
               <span className="text-xs text-muted-foreground font-normal">({offer.type})</span>
             </CardTitle>
             <div className="flex items-center gap-2">
