@@ -177,10 +177,22 @@ const OfferEditor = ({ offer, index, onChange, onDelete, loanAmount, termYears, 
             </div>
 
             {/* Financial details */}
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
               <div>
                 <Label className="text-xs">TIN bonificado %</Label>
                 <Input type="number" step="0.01" value={offer.base_tin} onChange={(e) => update({ base_tin: +e.target.value })} />
+              </div>
+              <div>
+                <Label className="text-xs flex items-center gap-1">
+                  TIN sin bonificar %
+                  <Calculator className="h-3 w-3 text-muted-foreground" />
+                  <span className="text-muted-foreground">(auto)</span>
+                </Label>
+                <Input
+                  readOnly
+                  value={(offer.base_tin + offer.linkages.filter(l => l.is_active_default).reduce((s, l) => s + l.discount_weight_pct, 0)).toFixed(2) + " %"}
+                  className="bg-muted cursor-default"
+                />
               </div>
               <div>
                 <Label className="text-xs flex items-center gap-1">

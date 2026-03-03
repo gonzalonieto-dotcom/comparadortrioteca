@@ -81,12 +81,23 @@ const OperationEditor = () => {
       setIsPublished(dbOp.is_published);
 
       const { offers: dbOffers, linkages, mixedPeriods } = await fetchOffersByOperation(id!);
-      setOffers(dbOffers.map((o) => ({
+      setOffers(dbOffers.map((o) => {
+        const offerLinkages = linkages.filter((l) => l.offer_id === o.id).map((l) => ({
+          label: l.label,
+          is_active_default: l.is_active_default,
+          discount_weight_pct: l.discount_weight_pct,
+          annual_cost: l.annual_cost,
+        }));
+        // DB stores TIN sin bonificar; subtract active discounts to show bonified TIN to gestor
+        const activeDiscount = offerLinkages
+          .filter((l) => l.is_active_default)
+          .reduce((s, l) => s + l.discount_weight_pct, 0);
+        return {
         id: o.id,
         bank_name: o.bank_name,
         logo_color: o.logo_color,
         type: o.type,
-        base_tin: o.base_tin,
+        base_tin: +(o.base_tin - activeDiscount).toFixed(4),
         estimated_tae: o.estimated_tae,
         monthly_payment: o.monthly_payment,
         amortization_fee_pct: o.amortization_fee_pct,
@@ -96,19 +107,15 @@ const OperationEditor = () => {
         advantages: o.advantages || [],
         considerations: o.considerations || [],
         sort_order: o.sort_order,
-        linkages: linkages.filter((l) => l.offer_id === o.id).map((l) => ({
-          label: l.label,
-          is_active_default: l.is_active_default,
-          discount_weight_pct: l.discount_weight_pct,
-          annual_cost: l.annual_cost,
-        })),
+        linkages: offerLinkages,
         mixedPeriods: mixedPeriods.filter((m) => m.offer_id === o.id).map((m) => ({
           from_year: m.from_year,
           to_year: m.to_year,
           fixed_tin: m.fixed_tin,
           spread_over_euribor: m.spread_over_euribor,
         })),
-      })));
+      };
+      }));
     } catch (err: any) {
       toast.error(err.message);
     } finally {
@@ -166,7 +173,7 @@ const OperationEditor = () => {
           bank_name: offer.bank_name,
           logo_color: offer.logo_color,
           type: offer.type,
-          base_tin: offer.base_tin,
+          base_tin: +(offer.base_tin + totalDiscount).toFixed(4),
           estimated_tae: isFinite(computedTAE) ? +computedTAE.toFixed(2) : 0,
           monthly_payment: isFinite(computedPayment) ? +computedPayment.toFixed(2) : 0,
           amortization_fee_pct: offer.amortization_fee_pct,
