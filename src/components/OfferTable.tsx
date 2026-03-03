@@ -22,7 +22,7 @@ import { Button } from "@/components/ui/button";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { InfoTooltip } from "@/components/InfoTooltip";
 import { Switch } from "@/components/ui/switch";
-import { BankLogo } from "@/lib/bankLogos";
+
 
 interface OfferTableProps {
   computedOffers: ComputedOffer[];
@@ -161,7 +161,7 @@ const DesktopTable = ({ computedOffers, onToggleLinkage, recommendedId, onAdvanc
                 >
                   <td className="px-5 py-4">
                     <div className="flex items-center gap-2.5">
-                      <BankLogo bankName={o.bankName} logoColor={o.logoColor} size="sm" />
+                      <span className="font-medium text-card-foreground text-sm">{o.bankName}</span>
                       {o.id === recommendedId && <Star className="h-4 w-4 text-primary fill-primary" />}
                     </div>
                   </td>
@@ -243,7 +243,7 @@ const MobileCards = ({ computedOffers, onToggleLinkage, recommendedId, onAdvance
             {/* Header */}
             <div className="px-4 py-3 flex items-center justify-between border-b bg-muted/30">
               <div className="flex items-center gap-2">
-                <BankLogo bankName={o.bankName} logoColor={o.logoColor} size="sm" />
+                <span className="font-medium text-card-foreground text-sm">{o.bankName}</span>
                 {o.id === recommendedId && <Star className="h-3.5 w-3.5 text-primary fill-primary" />}
               </div>
               <Badge variant="secondary" className="text-xs">{o.type}</Badge>

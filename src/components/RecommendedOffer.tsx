@@ -2,7 +2,7 @@ import { ComputedOffer } from "@/lib/mortgageCalc";
 import { Star } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { InfoTooltip } from "@/components/InfoTooltip";
-import { BankLogo } from "@/lib/bankLogos";
+
 
 interface RecommendedOfferProps {
   computed: ComputedOffer;
@@ -33,7 +33,7 @@ const RecommendedOffer = ({ computed, savingsVsNext }: RecommendedOfferProps) =>
         <div className="space-y-4">
           <div>
             <div className="flex items-center gap-2 mb-1">
-              <BankLogo bankName={o.bankName} logoColor={o.logoColor} size="lg" />
+              <span className="text-lg font-semibold text-card-foreground">{o.bankName}</span>
             </div>
             <Badge variant="secondary" className="text-xs">{o.type}</Badge>
           </div>
