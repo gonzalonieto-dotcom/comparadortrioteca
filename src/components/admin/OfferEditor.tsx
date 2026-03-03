@@ -266,30 +266,22 @@ const OfferEditor = ({ offer, index, onChange, onDelete, loanAmount, termYears, 
             {offer.type === "Mixto" && (
               <MixedPeriodEditor periods={offer.mixedPeriods} onChange={(mixedPeriods) => update({ mixedPeriods })} />
             )}
+
+            {/* Bonificaciones (collapsible dentro del formulario) */}
+            <Collapsible>
+              <CollapsibleTrigger asChild>
+                <div className="flex items-center justify-between cursor-pointer py-2 border-t pt-4 mt-2">
+                  <Label className="text-sm font-semibold cursor-pointer">Bonificaciones</Label>
+                  <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                </div>
+              </CollapsibleTrigger>
+              <CollapsibleContent className="pt-2">
+                <LinkageEditor linkages={offer.linkages} onChange={(linkages) => update({ linkages })} />
+              </CollapsibleContent>
+            </Collapsible>
           </CardContent>
         )}
       </Card>
-
-      {expanded && (<>
-
-        <Collapsible>
-          <Card>
-            <CollapsibleTrigger asChild>
-              <CardHeader className="cursor-pointer">
-                <CardTitle className="text-base flex items-center justify-between">
-                  Vinculaciones / Bonificaciones
-                  <ChevronDown className="h-4 w-4 text-muted-foreground" />
-                </CardTitle>
-              </CardHeader>
-            </CollapsibleTrigger>
-            <CollapsibleContent>
-              <CardContent>
-                <LinkageEditor linkages={offer.linkages} onChange={(linkages) => update({ linkages })} />
-              </CardContent>
-            </CollapsibleContent>
-          </Card>
-        </Collapsible>
-      </>)}
     </div>
   );
 };
