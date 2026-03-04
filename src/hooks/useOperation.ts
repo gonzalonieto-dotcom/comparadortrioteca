@@ -136,9 +136,12 @@ function mapToAppTypes(
 
 // ─── CRUD for gestores ───
 export async function fetchMyOperations() {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error("No autenticado");
   const { data, error } = await supabase
     .from("operations")
     .select("*")
+    .eq("created_by", user.id)
     .order("created_at", { ascending: false });
   if (error) throw error;
   return data as DbOperation[];
