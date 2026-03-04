@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 import { Plus, Pencil, Trash2, Copy, LogOut, Eye, EyeOff } from "lucide-react";
 import triotecaLogo from "@/assets/trioteca-logo-vert.png";
@@ -15,6 +16,7 @@ const Operations = () => {
   const navigate = useNavigate();
   const [operations, setOperations] = useState<DbOperation[]>([]);
   const [loading, setLoading] = useState(true);
+  const [deleteId, setDeleteId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!authLoading && !user) navigate("/admin/login");
@@ -53,14 +55,16 @@ const Operations = () => {
     }
   };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm("¿Eliminar esta operación y todas sus ofertas?")) return;
+  const handleDelete = async () => {
+    if (!deleteId) return;
     try {
-      await deleteOperation(id);
-      setOperations((prev) => prev.filter((o) => o.id !== id));
+      await deleteOperation(deleteId);
+      setOperations((prev) => prev.filter((o) => o.id !== deleteId));
       toast.success("Operación eliminada");
     } catch (err: any) {
       toast.error(err.message);
+    } finally {
+      setDeleteId(null);
     }
   };
 
@@ -146,7 +150,7 @@ const Operations = () => {
                         <Button variant="ghost" size="sm" onClick={() => copyLink(op)} disabled={!op.is_published}>
                           <Copy className="h-4 w-4" />
                         </Button>
-                        <Button variant="ghost" size="sm" onClick={() => handleDelete(op.id)}>
+                        <Button variant="ghost" size="sm" onClick={() => setDeleteId(op.id)}>
                           <Trash2 className="h-4 w-4 text-destructive" />
                         </Button>
                       </TableCell>
@@ -157,6 +161,23 @@ const Operations = () => {
             )}
           </CardContent>
         </Card>
+
+        <AlertDialog open={!!deleteId} onOpenChange={(open) => !open && setDeleteId(null)}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>¿Eliminar comparativa?</AlertDialogTitle>
+              <AlertDialogDescription>
+                Se eliminará esta operación y todas sus ofertas asociadas. Esta acción no se puede deshacer.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+              <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                Eliminar
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </main>
     </div>
   );
