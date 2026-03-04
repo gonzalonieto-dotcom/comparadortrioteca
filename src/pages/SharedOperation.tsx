@@ -62,6 +62,22 @@ const SharedOperation = () => {
 
   if (loading) return <div className="min-h-screen flex items-center justify-center text-muted-foreground">Cargando operación...</div>;
   if (error || !defaults) return <div className="min-h-screen flex items-center justify-center text-destructive">{error || "Operación no encontrada"}</div>;
+  if (offers.length === 0) return (
+    <TooltipProvider>
+      <div className="min-h-screen bg-background">
+        <header className="border-b bg-card">
+          <div className="max-w-5xl mx-auto px-4 py-4 flex items-center justify-between">
+            <img src={triotecaLogo} alt="Trioteca" className="h-8" />
+            <p className="text-xs text-muted-foreground hidden sm:block">Comparador de ofertas hipotecarias</p>
+          </div>
+        </header>
+        <main className="max-w-5xl mx-auto px-4 py-16 text-center">
+          <h2 className="text-lg font-semibold text-foreground mb-2">Tu comparativa está en preparación</h2>
+          <p className="text-sm text-muted-foreground">Tu gestor aún no ha añadido ofertas a esta comparativa. Vuelve a consultar más tarde.</p>
+        </main>
+      </div>
+    </TooltipProvider>
+  );
 
   return (
     <TooltipProvider>
