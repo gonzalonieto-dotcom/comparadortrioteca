@@ -3,8 +3,11 @@ import { Offer, Linkage } from "@/data/mortgageData";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Trash2, Building2, Upload, FileCheck, Loader2 } from "lucide-react";
+import { Plus, Trash2, Building2, Upload, FileCheck, Loader2, ClipboardPaste, CheckCircle2, AlertCircle } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 
 interface ExternalOfferFormProps {
@@ -29,6 +32,9 @@ const ExternalOfferForm = ({ onAddOffer }: ExternalOfferFormProps) => {
   const [linkages, setLinkages] = useState<{ label: string; weight: string; cost: string }[]>([]);
   const [pdfParsing, setPdfParsing] = useState(false);
   const [pdfFileName, setPdfFileName] = useState<string | null>(null);
+  const [textContent, setTextContent] = useState("");
+  const [extractionDone, setExtractionDone] = useState(false);
+  const [aiConfirmed, setAiConfirmed] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const addLinkage = () => {
@@ -45,58 +51,70 @@ const ExternalOfferForm = ({ onAddOffer }: ExternalOfferFormProps) => {
     );
   };
 
-  const handlePdfFile = useCallback(async (file: File) => {
-    if (!file.type.includes("pdf")) {
-      toast({ title: "Solo se aceptan archivos PDF", variant: "destructive" });
-      return;
+  const applyExtractedData = (data: any) => {
+    setBankName(data.bank_name || "");
+    setType(data.type || "Fijo");
+    setBaseTIN(String(data.base_tin ?? ""));
+    setAmortFeePct(String(data.amortization_fee_pct ?? "0"));
+
+    if (data.linkages?.length) {
+      setLinkages(
+        data.linkages.map((l: any) => ({
+          label: l.label || "",
+          weight: String(l.discount_weight_pct ?? "0"),
+          cost: String(l.annual_cost ?? "0"),
+        }))
+      );
     }
+
+    setExtractionDone(true);
+    setAiConfirmed(false);
+    toast({ title: "Datos extraídos", description: `Banco: ${data.bank_name}` });
+  };
+
+  const callExtraction = useCallback(async (body: Record<string, string>) => {
     setPdfParsing(true);
-    setPdfFileName(file.name);
-
     try {
-      const buffer = await file.arrayBuffer();
-      const base64 = btoa(String.fromCharCode(...new Uint8Array(buffer)));
-
       const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
       const res = await fetch(
         `https://${projectId}.supabase.co/functions/v1/parse-offer-pdf`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ pdf_base64: base64 }),
+          body: JSON.stringify(body),
         }
       );
 
       if (!res.ok) {
-        const body = await res.json().catch(() => ({}));
-        throw new Error(body.error || "Error al procesar el PDF");
+        const b = await res.json().catch(() => ({}));
+        throw new Error(b.error || "Error al procesar");
       }
 
       const { data } = await res.json();
-
-      setBankName(data.bank_name || "");
-      setType(data.type || "Fijo");
-      setBaseTIN(String(data.base_tin ?? ""));
-      setAmortFeePct(String(data.amortization_fee_pct ?? "0"));
-
-      if (data.linkages?.length) {
-        setLinkages(
-          data.linkages.map((l: any) => ({
-            label: l.label || "",
-            weight: String(l.discount_weight_pct ?? "0"),
-            cost: String(l.annual_cost ?? "0"),
-          }))
-        );
-      }
-
-      toast({ title: "Datos extraídos del PDF", description: `Banco: ${data.bank_name}` });
+      applyExtractedData(data);
     } catch (err: any) {
-      toast({ title: "Error al leer el PDF", description: err.message, variant: "destructive" });
+      toast({ title: "Error al extraer datos", description: err.message, variant: "destructive" });
       setPdfFileName(null);
     } finally {
       setPdfParsing(false);
     }
   }, []);
+
+  const handlePdfFile = useCallback(async (file: File) => {
+    if (!file.type.includes("pdf")) {
+      toast({ title: "Solo se aceptan archivos PDF", variant: "destructive" });
+      return;
+    }
+    setPdfFileName(file.name);
+    const buffer = await file.arrayBuffer();
+    const base64 = btoa(String.fromCharCode(...new Uint8Array(buffer)));
+    await callExtraction({ pdf_base64: base64 });
+  }, [callExtraction]);
+
+  const handleTextExtract = useCallback(async () => {
+    if (!textContent.trim()) return;
+    await callExtraction({ text_content: textContent });
+  }, [textContent, callExtraction]);
 
   const handleDrop = useCallback(
     (e: React.DragEvent) => {
@@ -124,8 +142,6 @@ const ExternalOfferForm = ({ onAddOffer }: ExternalOfferFormProps) => {
         annualCostEUR: parseFloat(l.cost) || 0,
       }));
 
-    // The calc engine subtracts linkage discounts from baseTIN to get bonifiedTIN.
-    // The user enters the bonified TIN, so we need to add discounts back.
     const totalDiscount = offerLinkages
       .filter((l) => l.isActive)
       .reduce((s, l) => s + l.discountWeightPct, 0);
@@ -151,6 +167,9 @@ const ExternalOfferForm = ({ onAddOffer }: ExternalOfferFormProps) => {
     setAmortFeePct("0");
     setLinkages([]);
     setPdfFileName(null);
+    setTextContent("");
+    setExtractionDone(false);
+    setAiConfirmed(false);
     setOpen(false);
   };
 
@@ -169,6 +188,8 @@ const ExternalOfferForm = ({ onAddOffer }: ExternalOfferFormProps) => {
     );
   }
 
+  const canSubmit = bankName && baseTIN && (!extractionDone || aiConfirmed);
+
   return (
     <div className="bg-card rounded-xl border p-6">
       <div className="flex items-center justify-between mb-5">
@@ -180,48 +201,98 @@ const ExternalOfferForm = ({ onAddOffer }: ExternalOfferFormProps) => {
         </Button>
       </div>
 
-      {/* PDF Dropzone */}
-      <div
-        onDragOver={(e) => e.preventDefault()}
-        onDrop={handleDrop}
-        onClick={() => fileInputRef.current?.click()}
-        className={`mb-5 border-2 border-dashed rounded-lg p-4 text-center cursor-pointer transition-colors ${
-          pdfParsing
-            ? "border-primary/50 bg-primary/5"
-            : pdfFileName
-            ? "border-primary/40 bg-primary/5"
-            : "border-muted-foreground/25 hover:border-primary/40 hover:bg-muted/30"
-        }`}
-      >
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept=".pdf"
-          className="hidden"
-          onChange={(e) => {
-            const file = e.target.files?.[0];
-            if (file) handlePdfFile(file);
-          }}
-        />
-        {pdfParsing ? (
-          <div className="flex flex-col items-center gap-2 text-primary">
-            <Loader2 className="h-6 w-6 animate-spin" />
-            <span className="text-xs font-medium">Extrayendo datos del PDF...</span>
+      {/* Extraction: PDF or Text */}
+      <Tabs defaultValue="pdf" className="mb-5">
+        <TabsList className="w-full grid grid-cols-2 h-8">
+          <TabsTrigger value="pdf" className="text-xs gap-1"><Upload className="h-3.5 w-3.5" /> PDF</TabsTrigger>
+          <TabsTrigger value="text" className="text-xs gap-1"><ClipboardPaste className="h-3.5 w-3.5" /> Pegar texto</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="pdf">
+          <div
+            onDragOver={(e) => e.preventDefault()}
+            onDrop={handleDrop}
+            onClick={() => fileInputRef.current?.click()}
+            className={`border-2 border-dashed rounded-lg p-4 text-center cursor-pointer transition-colors ${
+              pdfParsing
+                ? "border-primary/50 bg-primary/5"
+                : pdfFileName
+                ? "border-primary/40 bg-primary/5"
+                : "border-muted-foreground/25 hover:border-primary/40 hover:bg-muted/30"
+            }`}
+          >
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".pdf"
+              className="hidden"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) handlePdfFile(file);
+              }}
+            />
+            {pdfParsing ? (
+              <div className="flex flex-col items-center gap-2 text-primary">
+                <Loader2 className="h-6 w-6 animate-spin" />
+                <span className="text-xs font-medium">Extrayendo datos del PDF...</span>
+              </div>
+            ) : pdfFileName ? (
+              <div className="flex flex-col items-center gap-1 text-primary">
+                <FileCheck className="h-6 w-6" />
+                <span className="text-xs font-medium">{pdfFileName}</span>
+                <span className="text-[10px] text-muted-foreground">Datos pre-rellenados. Ajusta lo que necesites.</span>
+              </div>
+            ) : (
+              <div className="flex flex-col items-center gap-1 text-muted-foreground">
+                <Upload className="h-6 w-6" />
+                <span className="text-xs font-medium">Arrastra tu PDF de oferta bancaria aquí</span>
+                <span className="text-[10px]">o haz clic para seleccionarlo</span>
+              </div>
+            )}
           </div>
-        ) : pdfFileName ? (
-          <div className="flex flex-col items-center gap-1 text-primary">
-            <FileCheck className="h-6 w-6" />
-            <span className="text-xs font-medium">{pdfFileName}</span>
-            <span className="text-[10px] text-muted-foreground">Datos pre-rellenados. Ajusta lo que necesites.</span>
+        </TabsContent>
+
+        <TabsContent value="text">
+          <div className="space-y-2">
+            <Textarea
+              placeholder="Pega aquí el texto de la oferta bancaria (email, WhatsApp, web…)"
+              value={textContent}
+              onChange={(e) => setTextContent(e.target.value)}
+              rows={4}
+              className="text-xs"
+            />
+            <Button
+              size="sm"
+              className="w-full gap-1"
+              disabled={!textContent.trim() || pdfParsing}
+              onClick={handleTextExtract}
+            >
+              {pdfParsing ? (
+                <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Extrayendo datos…</>
+              ) : (
+                <><ClipboardPaste className="h-3.5 w-3.5" /> Extraer datos del texto</>
+              )}
+            </Button>
           </div>
-        ) : (
-          <div className="flex flex-col items-center gap-1 text-muted-foreground">
-            <Upload className="h-6 w-6" />
-            <span className="text-xs font-medium">Arrastra tu PDF de oferta bancaria aquí</span>
-            <span className="text-[10px]">o haz clic para seleccionarlo</span>
-          </div>
-        )}
-      </div>
+        </TabsContent>
+      </Tabs>
+
+      {/* AI Disclaimer */}
+      {extractionDone && (
+        <div className="mb-5 rounded-lg border border-primary/30 bg-primary/5 p-3">
+          <p className="text-xs text-foreground mb-2">
+            🤖 <strong>¡Ojo!</strong> Verifica que los datos extraídos son correctos. Como buena IA, a veces me invento cosas con mucha convicción.
+          </p>
+          <label className="flex items-center gap-2 cursor-pointer">
+            <Checkbox
+              checked={aiConfirmed}
+              onCheckedChange={(v) => setAiConfirmed(v === true)}
+              className="data-[state=checked]:bg-green-600 data-[state=checked]:border-green-600"
+            />
+            <span className="text-xs text-muted-foreground">He verificado que los datos son correctos</span>
+          </label>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-5">
         <div>
@@ -321,7 +392,7 @@ const ExternalOfferForm = ({ onAddOffer }: ExternalOfferFormProps) => {
         </div>
       </div>
 
-      <Button onClick={handleSubmit} disabled={!bankName || !baseTIN} className="w-full">
+      <Button onClick={handleSubmit} disabled={!canSubmit} className="w-full">
         Añadir a la comparativa
       </Button>
     </div>
