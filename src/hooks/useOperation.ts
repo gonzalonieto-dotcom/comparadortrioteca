@@ -162,8 +162,9 @@ export async function updateOperation(id: string, op: Partial<Omit<DbOperation, 
     .update(op)
     .eq("id", id)
     .select()
-    .single();
+    .maybeSingle();
   if (error) throw error;
+  if (!data) throw new Error("No tienes permisos para editar esta operación");
   return data as DbOperation;
 }
 
