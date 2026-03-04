@@ -41,6 +41,7 @@ const Operations = () => {
   const handleNew = async () => {
     try {
       const op = await createOperation({
+        client_name: "",
         purchase_price: 250000,
         appraisal_value: 260000,
         loan_amount: 200000,
@@ -120,8 +121,9 @@ const Operations = () => {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Importe</TableHead>
-                    <TableHead>Precio vivienda</TableHead>
+                     <TableHead>Cliente</TableHead>
+                     <TableHead>Importe</TableHead>
+                     <TableHead>Precio vivienda</TableHead>
                     <TableHead>Plazo</TableHead>
                     <TableHead>Estado</TableHead>
                     <TableHead>Creada</TableHead>
@@ -131,7 +133,8 @@ const Operations = () => {
                 <TableBody>
                   {operations.map((op) => (
                     <TableRow key={op.id}>
-                      <TableCell className="font-medium">{fmt(op.loan_amount)}</TableCell>
+                      <TableCell className="font-medium">{op.client_name || <span className="text-muted-foreground italic">Sin nombre</span>}</TableCell>
+                      <TableCell>{fmt(op.loan_amount)}</TableCell>
                       <TableCell>{fmt(op.purchase_price)}</TableCell>
                       <TableCell>{op.term_years} años</TableCell>
                       <TableCell>

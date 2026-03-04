@@ -1,0 +1,1 @@
+ALTER TABLE public.operations ADD COLUMN client_name text NOT NULL DEFAULT '';
