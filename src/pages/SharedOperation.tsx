@@ -1,6 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { useParams } from "react-router-dom";
-import { fetchOperationByToken } from "@/hooks/useOperation";
 import type { Offer, OperationDefaults } from "@/data/mortgageData";
 import { computeOffer, ComputedOffer } from "@/lib/mortgageCalc";
 import LoanHeader from "@/components/LoanHeader";
@@ -18,6 +17,7 @@ import { ChevronDown } from "lucide-react";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import triotecaLogo from "@/assets/trioteca-logo-vert.png";
 import type { PartialPayment } from "@/pages/Index";
+import { supabase } from "@/integrations/supabase/client";
 
 const SharedOperation = () => {
   const { token } = useParams<{ token: string }>();
@@ -32,8 +32,55 @@ const SharedOperation = () => {
 
   useEffect(() => {
     if (!token) return;
-    fetchOperationByToken(token)
-      .then(({ defaults: d, offers: o }) => { setDefaults(d); setOffers(o); })
+    supabase.functions.invoke("get-comparison", { body: { token } })
+      .then(({ data, error: fnErr }) => {
+        if (fnErr || !data || data.error) {
+          setError(data?.error || fnErr?.message || "Comparativa no encontrada");
+          return;
+        }
+        const op = data.operation;
+        setDefaults({
+          purchasePrice: op.purchase_price,
+          appraisalValue: op.appraisal_value,
+          loanAmount: op.loan_amount,
+          termYears: op.term_years,
+          homeInsuranceAnnualDefault: op.home_insurance_annual,
+          lifeInsuranceAnnualDefault: op.life_insurance_annual,
+          appraisalCostEUR: op.appraisal_cost,
+        });
+        const linkages = data.linkages || [];
+        const mixedPeriods = data.mixedPeriods || [];
+        setOffers((data.offers || []).map((o: any) => ({
+          id: o.id,
+          bankName: o.bank_name,
+          logoColor: o.logo_color,
+          type: o.type as Offer["type"],
+          baseTIN: o.base_tin,
+          amortizationFeePct: o.amortization_fee_pct,
+          upfrontCostsEUR: o.upfront_costs,
+          monthlyAccountCostEUR: o.monthly_account_cost,
+          euriborRate: o.euribor_rate ?? undefined,
+          advantages: o.advantages || [],
+          considerations: o.considerations || [],
+          linkages: linkages
+            .filter((l: any) => l.offer_id === o.id)
+            .map((l: any) => ({
+              id: l.id,
+              label: l.label,
+              isActive: l.is_active_default,
+              discountWeightPct: l.discount_weight_pct,
+              annualCostEUR: l.annual_cost,
+            })),
+          mixedPeriods: mixedPeriods
+            .filter((m: any) => m.offer_id === o.id)
+            .map((m: any) => ({
+              fromYear: m.from_year,
+              toYear: m.to_year,
+              fixedTIN: m.fixed_tin ?? undefined,
+              spreadOverEuribor: m.spread_over_euribor ?? undefined,
+            })),
+        })));
+      })
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false));
   }, [token]);
