@@ -107,7 +107,11 @@ const Index = () => {
           </section>
 
           <section>
-            <ExternalOfferForm onAddOffer={handleAddOffer} />
+            <ExternalOfferForm
+              onAddOffer={handleAddOffer}
+              existingExternalOffer={offers.find((o) => o.isExternal) || null}
+              onDeleteOffer={handleDeleteOffer}
+            />
           </section>
 
           <section>

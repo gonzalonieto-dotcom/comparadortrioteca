@@ -12,6 +12,8 @@ import { toast } from "@/hooks/use-toast";
 
 interface ExternalOfferFormProps {
   onAddOffer: (offer: Offer) => void;
+  existingExternalOffer?: Offer | null;
+  onDeleteOffer?: (offerId: string) => void;
 }
 
 const COLORS = [
@@ -23,7 +25,7 @@ const COLORS = [
 ];
 let colorIndex = 0;
 
-const ExternalOfferForm = ({ onAddOffer }: ExternalOfferFormProps) => {
+const ExternalOfferForm = ({ onAddOffer, existingExternalOffer, onDeleteOffer }: ExternalOfferFormProps) => {
   const [open, setOpen] = useState(false);
   const [bankName, setBankName] = useState("");
   const [type, setType] = useState<"Fijo" | "Mixto" | "Variable">("Fijo");
@@ -174,6 +176,28 @@ const ExternalOfferForm = ({ onAddOffer }: ExternalOfferFormProps) => {
   };
 
   if (!open) {
+    // If an external offer already exists, show a message instead of the add button
+    if (existingExternalOffer) {
+      return (
+        <div className="w-full bg-card rounded-xl border border-muted-foreground/20 p-5">
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
+            <div className="flex items-center gap-3 text-muted-foreground">
+              <Building2 className="h-6 w-6 shrink-0" />
+              <div>
+                <p className="text-sm font-medium text-card-foreground">Ya tienes una oferta externa añadida</p>
+                <p className="text-xs">Solo puedes comparar una oferta externa a la vez. Elimínala para añadir otra.</p>
+              </div>
+            </div>
+            <div className="flex gap-2">
+              <Button variant="outline" size="sm" className="gap-1 text-xs" onClick={() => { onDeleteOffer?.(existingExternalOffer.id); }}>
+                <Trash2 className="h-3.5 w-3.5 text-destructive" /> Eliminar
+              </Button>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
     return (
       <button
         onClick={() => setOpen(true)}

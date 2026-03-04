@@ -200,7 +200,11 @@ const ClientComparison = () => {
               onDeleteOffer={handleDeleteOffer}
             />
             <div className="mt-4">
-              <ExternalOfferForm onAddOffer={handleAddExternalOffer} />
+              <ExternalOfferForm
+                onAddOffer={handleAddExternalOffer}
+                existingExternalOffer={offers.find((o) => o.isExternal) || null}
+                onDeleteOffer={handleDeleteOffer}
+              />
             </div>
           </section>
 
