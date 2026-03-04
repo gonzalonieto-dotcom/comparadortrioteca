@@ -34,6 +34,7 @@ const OperationEditor = () => {
   const [op, setOp] = useState({
     purchase_price: 0, appraisal_value: 0, loan_amount: 0, term_years: 30,
     home_insurance_annual: 0, life_insurance_annual: 0, appraisal_cost: 0,
+    client_name: "",
   });
   const [shareToken, setShareToken] = useState("");
   const [isPublished, setIsPublished] = useState(false);
@@ -77,6 +78,7 @@ const OperationEditor = () => {
         home_insurance_annual: dbOp.home_insurance_annual,
         life_insurance_annual: dbOp.life_insurance_annual,
         appraisal_cost: dbOp.appraisal_cost,
+        client_name: dbOp.client_name || "",
       });
       setShareToken(dbOp.share_token);
       setIsPublished(dbOp.is_published);
@@ -267,7 +269,11 @@ const OperationEditor = () => {
             <CardTitle>Datos de la operación</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <div className="md:col-span-4">
+                <Label>Nombre del cliente</Label>
+                <Input value={op.client_name} onChange={(e) => setOp({ ...op, client_name: e.target.value })} placeholder="Ej: Juan García" />
+              </div>
               <div>
                 <Label>Precio vivienda €</Label>
                 <Input type="number" value={op.purchase_price} onChange={(e) => setOp({ ...op, purchase_price: +e.target.value })} />

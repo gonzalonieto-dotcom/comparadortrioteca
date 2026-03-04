@@ -15,6 +15,7 @@ export interface DbOperation {
   share_token: string;
   is_published: boolean;
   created_at: string;
+  client_name: string;
 }
 
 export interface DbOffer {

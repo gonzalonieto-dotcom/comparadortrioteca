@@ -153,6 +153,7 @@ export type Database = {
         Row: {
           appraisal_cost: number
           appraisal_value: number
+          client_name: string
           created_at: string
           created_by: string
           home_insurance_annual: number
@@ -167,6 +168,7 @@ export type Database = {
         Insert: {
           appraisal_cost?: number
           appraisal_value?: number
+          client_name?: string
           created_at?: string
           created_by: string
           home_insurance_annual?: number
@@ -181,6 +183,7 @@ export type Database = {
         Update: {
           appraisal_cost?: number
           appraisal_value?: number
+          client_name?: string
           created_at?: string
           created_by?: string
           home_insurance_annual?: number
