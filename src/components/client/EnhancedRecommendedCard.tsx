@@ -1,5 +1,5 @@
 import { ComputedOffer } from "@/lib/mortgageCalc";
-import { Star, ArrowRight, ChevronDown, CheckCircle2, Shield, TrendingDown, Zap, Award } from "lucide-react";
+import { Star, ArrowRight, ChevronDown, TrendingDown } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { InfoTooltip } from "@/components/InfoTooltip";
@@ -27,61 +27,59 @@ const EnhancedRecommendedCard = ({
   const activeLinkages = o.linkages.filter((l) => l.isActive);
 
   return (
-    <div className="relative bg-card rounded-2xl border-2 border-primary shadow-lg shadow-primary/10 overflow-hidden">
+    <div className="relative bg-card rounded-2xl border-2 border-primary shadow-lg shadow-primary/8 overflow-hidden">
       {/* Top banner */}
-      <div className="bg-primary text-primary-foreground px-5 py-2.5 flex items-center justify-between">
+      <div className="bg-primary text-primary-foreground px-6 py-3 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Star className="h-4 w-4 fill-current" />
-          <span className="text-sm font-semibold">Nuestra recomendación</span>
+          <span className="text-sm font-semibold tracking-tight">Nuestra recomendación</span>
         </div>
-        <Badge className="bg-primary-foreground/20 text-primary-foreground border-0 text-[10px]">
+        <Badge className="bg-primary-foreground/20 text-primary-foreground border-0 text-[10px] font-medium">
           Mejor opción
         </Badge>
       </div>
 
-      <div className="p-5 md:p-8">
+      <div className="p-6 md:p-10">
         {/* Bank name & type */}
-        <div className="flex items-center justify-between mb-5">
-          <div className="flex items-center gap-3">
-            <BankLogo bankName={o.bankName} logoColor={o.logoColor} size="lg" />
-          </div>
+        <div className="flex items-center justify-between mb-6">
+          <BankLogo bankName={o.bankName} logoColor={o.logoColor} size="lg" />
           <Badge variant="secondary" className="text-xs">{o.type}</Badge>
         </div>
 
         {/* Key metrics */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6 mb-6">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-5 md:gap-8 mb-8">
           <div>
-            <p className="text-xs text-muted-foreground flex items-center gap-1 mb-1">
+            <p className="text-xs text-muted-foreground flex items-center gap-1 mb-1.5">
               Cuota mensual
               <InfoTooltip text="Es lo que pagarías cada mes. Conviene verla junto con el resto de condiciones para tomar una buena decisión." />
             </p>
-            <p className="text-3xl md:text-4xl font-bold text-foreground">{fmt(computed.monthlyPayment)}</p>
+            <p className="text-3xl md:text-4xl font-bold text-foreground tracking-tight">{fmt(computed.monthlyPayment)}</p>
           </div>
           <div>
-            <p className="text-xs text-muted-foreground flex items-center gap-1 mb-1">
+            <p className="text-xs text-muted-foreground flex items-center gap-1 mb-1.5">
               TIN bonificado
-              <InfoTooltip text="TIN = Tipo de Interés Nominal. Es el porcentaje que el banco te cobra. Este ya incluye el descuento de las bonificaciones activas." />
+              <InfoTooltip text="TIN = Tipo de Interés Nominal. Es el porcentaje que el banco cobra sobre el dinero prestado. Este ya incluye el descuento de las bonificaciones activas." />
             </p>
             <p className="text-2xl font-bold text-primary">{computed.bonifiedTIN.toFixed(2)} %</p>
           </div>
           <div>
-            <p className="text-xs text-muted-foreground flex items-center gap-1 mb-1">
+            <p className="text-xs text-muted-foreground flex items-center gap-1 mb-1.5">
               Coste total
-              <InfoTooltip text="No solo importa la cuota. Ver el coste total te ayuda a entender mejor cuánto acabarías pagando a lo largo del tiempo." />
+              <InfoTooltip text="No solo importa la cuota. El coste total te muestra cuánto acabarías pagando a lo largo de toda la vida de la hipoteca." />
             </p>
             <p className="text-xl font-semibold text-foreground">{fmt(computed.totalCost)}</p>
           </div>
           <div>
-            <p className="text-xs text-muted-foreground mb-1">TAE estimada</p>
+            <p className="text-xs text-muted-foreground mb-1.5">TAE estimada</p>
             <p className="text-xl font-semibold text-foreground">{computed.taeEstimated.toFixed(2)} %</p>
           </div>
         </div>
 
         {/* Savings callout */}
         {savingsVsNext > 0 && (
-          <div className="bg-accent/10 border border-accent/20 rounded-xl px-4 py-3 mb-6 flex items-center gap-3">
+          <div className="bg-accent/8 border border-accent/15 rounded-xl px-5 py-3.5 mb-8 flex items-center gap-3">
             <TrendingDown className="h-5 w-5 text-accent flex-shrink-0" />
-            <p className="text-sm text-foreground">
+            <p className="text-sm text-foreground leading-relaxed">
               <span className="font-semibold">~{fmt(savingsVsNext)} menos</span>{" "}
               que la siguiente opción a lo largo de la vida de la hipoteca.
             </p>
@@ -90,8 +88,8 @@ const EnhancedRecommendedCard = ({
 
         {/* Linkages summary */}
         {!o.isExternal && activeLinkages.length > 0 && (
-          <div className="mb-6">
-            <p className="text-xs text-muted-foreground mb-2 flex items-center gap-1">
+          <div className="mb-8">
+            <p className="text-xs text-muted-foreground mb-2.5 flex items-center gap-1">
               Vinculación requerida ({activeLinkages.length})
               <InfoTooltip text="La vinculación son productos que el banco puede pedirte para mejorar las condiciones, como nómina, seguros o tarjetas." />
             </p>
@@ -104,7 +102,7 @@ const EnhancedRecommendedCard = ({
         )}
 
         {/* Explanation */}
-        <p className="text-sm text-muted-foreground mb-6 leading-relaxed">
+        <p className="text-sm text-muted-foreground mb-8 leading-relaxed max-w-xl">
           {isCouple
             ? "Es la opción que mejor equilibra cuota, coste total y condiciones para vuestro perfil."
             : "Es la opción que mejor equilibra cuota, coste total y condiciones para tu perfil."}
@@ -114,7 +112,7 @@ const EnhancedRecommendedCard = ({
         <div className="flex flex-col sm:flex-row gap-3">
           <Button
             size="lg"
-            className="gap-2 flex-1 sm:flex-none"
+            className="gap-2 flex-1 sm:flex-none font-semibold"
             onClick={() => onAdvance?.(o.id)}
           >
             Avanzar con esta oferta <ArrowRight className="h-4 w-4" />
@@ -122,7 +120,7 @@ const EnhancedRecommendedCard = ({
           <Button
             size="lg"
             variant="ghost"
-            className="gap-2 text-muted-foreground"
+            className="gap-2 text-muted-foreground hover:text-foreground"
             onClick={onScrollToWhy}
           >
             Ver por qué la recomendamos <ChevronDown className="h-4 w-4" />
