@@ -1,5 +1,5 @@
 import { ComputedOffer } from "@/lib/mortgageCalc";
-import { CheckCircle2, TrendingDown, Shield, Zap, Award, Scale } from "lucide-react";
+import { TrendingDown, Shield, Zap, Award, Scale } from "lucide-react";
 import { InfoTooltip } from "@/components/InfoTooltip";
 import { forwardRef } from "react";
 
@@ -18,62 +18,64 @@ const WhyWeRecommend = forwardRef<HTMLDivElement, WhyWeRecommendProps>(
     const o = computed.offer;
     const activeLinkages = o.linkages.filter((l) => l.isActive);
 
-    // Build interpretive reasons from existing data
-    const reasons: { icon: React.ReactNode; text: string }[] = [];
+    const reasons: { icon: React.ReactNode; title: string; text: string }[] = [];
 
-    // Lowest cost
     reasons.push({
       icon: <TrendingDown className="h-5 w-5 text-accent flex-shrink-0" />,
-      text: "Cuota mensual competitiva: es la opción con menor coste total entre las disponibles.",
+      title: "Cuota mensual competitiva",
+      text: "Es la opción con menor coste total entre las alternativas disponibles para tu perfil.",
     });
 
-    // Savings
     if (savingsVsNext > 0) {
       reasons.push({
         icon: <Scale className="h-5 w-5 text-accent flex-shrink-0" />,
-        text: `Buen equilibrio entre coste y condiciones: ~${fmt(savingsVsNext)} menos que la siguiente mejor opción.`,
+        title: "Diferencia significativa",
+        text: `Supone aproximadamente ${fmt(savingsVsNext)} menos que la siguiente mejor opción a lo largo de la vida de la hipoteca.`,
       });
     }
 
-    // Low linkages
     if (activeLinkages.length <= 2) {
       reasons.push({
         icon: <Shield className="h-5 w-5 text-accent flex-shrink-0" />,
-        text: "Menor carga de productos vinculados: menos compromisos adicionales con el banco.",
+        title: "Menor carga de vinculación",
+        text: "Requiere menos productos vinculados, lo que significa menos compromisos adicionales.",
       });
     }
 
-    // Amortization
     if (o.amortizationFeePct === 0) {
       reasons.push({
         icon: <Zap className="h-5 w-5 text-accent flex-shrink-0" />,
-        text: "Sin comisión por amortización anticipada: puedes reducir tu hipoteca cuando quieras.",
+        title: "Sin comisión por amortización",
+        text: "Puedes reducir o cancelar tu hipoteca anticipadamente sin coste adicional.",
       });
     }
 
-    // Type advantage
     reasons.push({
       icon: <Award className="h-5 w-5 text-accent flex-shrink-0" />,
+      title: "Equilibrio global",
       text: isCouple
-        ? "Opción más equilibrada para vuestro perfil según las condiciones visibles en la comparación."
-        : "Opción más equilibrada para tu perfil según las condiciones visibles en la comparación.",
+        ? "Es la opción más equilibrada para vuestro perfil según el conjunto de condiciones visibles en la comparación."
+        : "Es la opción más equilibrada para tu perfil según el conjunto de condiciones visibles en la comparación.",
     });
 
     return (
-      <div ref={ref} className="bg-card rounded-2xl border p-5 md:p-8">
-        <div className="flex items-center gap-2 mb-1">
+      <div ref={ref} className="bg-card rounded-2xl border p-6 md:p-10">
+        <div className="flex items-center gap-2 mb-2">
           <h2 className="text-lg font-semibold text-foreground">¿Por qué recomendamos esta oferta?</h2>
           <InfoTooltip text="No recomendamos una oferta solo por tener una cuota atractiva, sino por el equilibrio entre coste, condiciones y facilidad para avanzar." />
         </div>
-        <p className="text-sm text-muted-foreground mb-6">
+        <p className="text-sm text-muted-foreground mb-8 max-w-2xl leading-relaxed">
           No se trata solo de elegir una cuota baja. Se trata de elegir la oferta que mejor encaja {isCouple ? "con vosotros" : "contigo"}.
         </p>
 
-        <div className="space-y-4">
+        <div className="space-y-5">
           {reasons.map((r, i) => (
-            <div key={i} className="flex items-start gap-3">
-              {r.icon}
-              <p className="text-sm text-foreground leading-relaxed">{r.text}</p>
+            <div key={i} className="flex items-start gap-3.5">
+              <div className="mt-0.5">{r.icon}</div>
+              <div>
+                <p className="text-sm font-medium text-foreground mb-0.5">{r.title}</p>
+                <p className="text-xs text-muted-foreground leading-relaxed">{r.text}</p>
+              </div>
             </div>
           ))}
         </div>
