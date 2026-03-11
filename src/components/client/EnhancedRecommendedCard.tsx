@@ -1,5 +1,5 @@
 import { ComputedOffer } from "@/lib/mortgageCalc";
-import { Star, ArrowRight, ChevronDown, TrendingDown } from "lucide-react";
+import { Star, ArrowRight, ChevronDown, TrendingDown, Sparkles } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { InfoTooltip } from "@/components/InfoTooltip";
@@ -90,13 +90,23 @@ const EnhancedRecommendedCard = ({
         {!o.isExternal && activeLinkages.length > 0 && (
           <div className="mb-8">
             <p className="text-xs text-muted-foreground mb-2.5 flex items-center gap-1">
-              Vinculación requerida ({activeLinkages.length})
-              <InfoTooltip text="La vinculación son productos que el banco puede pedirte para mejorar las condiciones, como nómina, seguros o tarjetas." />
+              Bonificación requerida ({activeLinkages.length})
+              <InfoTooltip text="La bonificación son productos que el banco puede pedirte para mejorar las condiciones, como nómina, seguros o tarjetas." />
             </p>
             <div className="flex flex-wrap gap-1.5">
               {activeLinkages.map((v) => (
                 <Badge key={v.id} variant="outline" className="text-xs font-normal">{v.label}</Badge>
               ))}
+            </div>
+          </div>
+        )}
+
+        {/* Key advantage from bank */}
+        {o.advantages && o.advantages.length > 0 && (
+          <div className="mb-8 flex items-start gap-3.5 bg-primary/5 border border-primary/10 rounded-xl px-5 py-4">
+            <Star className="h-5 w-5 text-accent flex-shrink-0 mt-0.5" />
+            <div>
+              <p className="text-sm font-medium text-foreground">{o.advantages[0]}</p>
             </div>
           </div>
         )}

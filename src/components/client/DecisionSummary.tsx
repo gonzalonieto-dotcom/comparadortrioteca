@@ -58,7 +58,7 @@ const DecisionSummary = ({ computed, isCouple = false, onAdvance }: DecisionSumm
             <p className="text-lg font-bold text-primary">{computed.bonifiedTIN.toFixed(2)}%</p>
           </div>
           <div>
-            <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">Vinculación</p>
+            <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">Bonificación</p>
             <p className="text-lg font-bold text-foreground">{activeLinkages.length}</p>
           </div>
         </div>

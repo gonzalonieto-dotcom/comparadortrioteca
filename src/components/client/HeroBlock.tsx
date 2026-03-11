@@ -17,8 +17,8 @@ const HeroBlock = ({ isCouple = false }: HeroBlockProps) => (
       </h1>
       <p className="text-sm md:text-base text-muted-foreground leading-relaxed">
         {isCouple
-          ? "Hemos analizado las ofertas que encajan con vuestro perfil y os mostramos cuál os conviene más según cuota, coste total, vinculación y condiciones para avanzar."
-          : "Hemos analizado las ofertas que encajan con tu perfil y te mostramos cuál te conviene más según cuota, coste total, vinculación y condiciones para avanzar."}
+          ? "Hemos analizado las ofertas que encajan con vuestro perfil y os mostramos cuál os conviene más según cuota, coste total, bonificación y condiciones para avanzar."
+          : "Hemos analizado las ofertas que encajan con tu perfil y te mostramos cuál te conviene más según cuota, coste total, bonificación y condiciones para avanzar."}
       </p>
       <p className="mt-4 text-xs text-muted-foreground/70">
         Comparar bien ahora puede evitar pagar de más durante años.
