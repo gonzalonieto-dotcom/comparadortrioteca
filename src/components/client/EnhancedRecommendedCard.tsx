@@ -1,5 +1,5 @@
 import { ComputedOffer } from "@/lib/mortgageCalc";
-import { Star, ArrowRight, ChevronDown, TrendingDown } from "lucide-react";
+import { Star, ArrowRight, ChevronDown, TrendingDown, Sparkles } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { InfoTooltip } from "@/components/InfoTooltip";
