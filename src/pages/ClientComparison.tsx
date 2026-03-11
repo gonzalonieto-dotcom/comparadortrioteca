@@ -1,10 +1,9 @@
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { useParams } from "react-router-dom";
 import type { Offer, OperationDefaults } from "@/data/mortgageData";
 import type { DbOperation, DbOffer, DbLinkage, DbMixedPeriod } from "@/hooks/useOperation";
 import { computeOffer, ComputedOffer } from "@/lib/mortgageCalc";
 import LoanHeader from "@/components/LoanHeader";
-import RecommendedOffer from "@/components/RecommendedOffer";
 import OfferTable from "@/components/OfferTable";
 import CostBreakdown from "@/components/CostBreakdown";
 import InterestBarChart from "@/components/InterestBarChart";
@@ -18,6 +17,13 @@ import { ChevronDown } from "lucide-react";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import triotecaLogo from "@/assets/trioteca-logo-vert.png";
 import type { PartialPayment } from "@/pages/Index";
+
+// New UX components
+import HeroBlock from "@/components/client/HeroBlock";
+import EnhancedRecommendedCard from "@/components/client/EnhancedRecommendedCard";
+import WhyWeRecommend from "@/components/client/WhyWeRecommend";
+import BankChangeObjection from "@/components/client/BankChangeObjection";
+import DecisionSummary from "@/components/client/DecisionSummary";
 
 function mapEdgeFunctionResponse(
   op: DbOperation & { is_published?: boolean },
@@ -79,13 +85,12 @@ const ClientComparison = () => {
   const [advanceOfferId, setAdvanceOfferId] = useState<string | null>(null);
   const [amortOpen, setAmortOpen] = useState(false);
   const [partialPayments, setPartialPayments] = useState<PartialPayment[]>([]);
+  const whyRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!token) return;
-
     const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
     const url = `https://${projectId}.supabase.co/functions/v1/get-comparison`;
-
     fetch(url, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -99,12 +104,7 @@ const ClientComparison = () => {
         return res.json();
       })
       .then((data) => {
-        const { defaults: d, offers: o } = mapEdgeFunctionResponse(
-          data.operation,
-          data.offers,
-          data.linkages,
-          data.mixedPeriods
-        );
+        const { defaults: d, offers: o } = mapEdgeFunctionResponse(data.operation, data.offers, data.linkages, data.mixedPeriods);
         setDefaults(d);
         setOffers(o);
       })
@@ -124,6 +124,7 @@ const ClientComparison = () => {
 
   const handleDeleteOffer = useCallback((offerId: string) => setOffers((prev) => prev.filter((o) => o.id !== offerId)), []);
   const handleAddExternalOffer = useCallback((offer: Offer) => setOffers((prev) => [...prev, offer]), []);
+  const handleAdvance = useCallback((offerId: string) => { setAdvanceOfferId(offerId); setAdvanceOpen(true); }, []);
 
   const computedOffers: ComputedOffer[] = useMemo(
     () => defaults ? offers.map((o) => computeOffer(o, defaults)) : [],
@@ -133,6 +134,10 @@ const ClientComparison = () => {
   const sortedByCost = useMemo(() => [...computedOffers].sort((a, b) => a.totalCost - b.totalCost), [computedOffers]);
   const recommended = sortedByCost[0];
   const savings = sortedByCost.length > 1 ? sortedByCost[1].totalCost - sortedByCost[0].totalCost : 0;
+
+  const scrollToWhy = useCallback(() => {
+    whyRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, []);
 
   if (loading) return <div className="min-h-screen flex items-center justify-center text-muted-foreground">Cargando comparativa...</div>;
   if (error || !defaults) {
@@ -176,17 +181,43 @@ const ClientComparison = () => {
           </div>
         </header>
 
-        <main className="max-w-5xl mx-auto px-4 py-8 space-y-10">
-          <section className="bg-primary/5 border border-primary/20 rounded-xl p-5 md:p-6">
-            <h2 className="text-lg font-semibold text-foreground mb-2">📊 Tu comparador hipotecario</h2>
-            <p className="text-sm text-muted-foreground leading-relaxed">
-              Este comparador toma las ofertas que los bancos tienen para ti. Cada una tiene un <strong>tipo de interés</strong> y unas <strong>bonificaciones</strong>. Puedes activar o desactivar bonificaciones para ver cómo cambia tu cuota.
-            </p>
+        <main className="max-w-5xl mx-auto px-4 py-8 space-y-8">
+          {/* 1. Hero */}
+          <HeroBlock />
+
+          {/* 2. Loan details */}
+          <LoanHeader defaults={defaults} />
+
+          {/* 3. Enhanced recommended card */}
+          {recommended && (
+            <section>
+              <EnhancedRecommendedCard
+                computed={recommended}
+                savingsVsNext={savings}
+                onAdvance={handleAdvance}
+                onScrollToWhy={scrollToWhy}
+              />
+            </section>
+          )}
+
+          {/* 4. Why we recommend */}
+          {recommended && (
+            <section>
+              <WhyWeRecommend
+                ref={whyRef}
+                computed={recommended}
+                savingsVsNext={savings}
+                allOffers={computedOffers}
+              />
+            </section>
+          )}
+
+          {/* 5. Bank change objection */}
+          <section>
+            <BankChangeObjection />
           </section>
 
-          <LoanHeader defaults={defaults} />
-          <section><RecommendedOffer computed={recommended} savingsVsNext={savings} /></section>
-
+          {/* 6. Offer comparison table */}
           <section>
             <div className="mb-4">
               <h2 className="text-lg font-semibold text-foreground">Comparativa de ofertas</h2>
@@ -196,7 +227,7 @@ const ClientComparison = () => {
               computedOffers={computedOffers}
               onToggleLinkage={handleToggleLinkage}
               recommendedId={recommended?.offer.id}
-              onAdvance={(offerId) => { setAdvanceOfferId(offerId); setAdvanceOpen(true); }}
+              onAdvance={handleAdvance}
               onDeleteOffer={handleDeleteOffer}
             />
             <div className="mt-4">
@@ -208,6 +239,7 @@ const ClientComparison = () => {
             </div>
           </section>
 
+          {/* 7. Cost breakdown */}
           <section>
             <div className="mb-4">
               <h2 className="text-lg font-semibold text-foreground">Coste total aproximado</h2>
@@ -219,6 +251,7 @@ const ClientComparison = () => {
             </div>
           </section>
 
+          {/* 8. Amortization table */}
           <section>
             <Collapsible open={amortOpen} onOpenChange={setAmortOpen}>
               <CollapsibleTrigger className="flex items-center justify-between w-full bg-card rounded-xl border px-6 py-4 hover:bg-muted/30 transition-colors">
@@ -236,6 +269,7 @@ const ClientComparison = () => {
             </Collapsible>
           </section>
 
+          {/* 9. Consideration cards */}
           <section>
             <div className="mb-4">
               <h2 className="text-lg font-semibold text-foreground">Puntos clave por banco</h2>
@@ -244,6 +278,14 @@ const ClientComparison = () => {
             <ConsiderationCards offers={offers} />
           </section>
 
+          {/* 10. Decision summary + final CTA */}
+          {recommended && (
+            <section>
+              <DecisionSummary computed={recommended} onAdvance={handleAdvance} />
+            </section>
+          )}
+
+          {/* 11. FAQ */}
           <section><FAQCopilot /></section>
 
           {(() => {

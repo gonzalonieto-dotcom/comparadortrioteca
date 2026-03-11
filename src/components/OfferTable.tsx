@@ -23,6 +23,7 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { InfoTooltip } from "@/components/InfoTooltip";
 import { Switch } from "@/components/ui/switch";
 import { BankLogo } from "@/lib/bankLogos";
+import { OfferBadgesInline } from "@/components/client/OfferBadges";
 
 
 interface OfferTableProps {
@@ -165,6 +166,9 @@ const DesktopTable = ({ computedOffers, onToggleLinkage, recommendedId, onAdvanc
                       <BankLogo bankName={o.bankName} logoColor={o.logoColor} size="md" />
                       {o.id === recommendedId && <Star className="h-4 w-4 text-primary fill-primary" />}
                     </div>
+                    <div className="mt-1">
+                      <OfferBadgesInline co={co} allOffers={computedOffers} recommendedId={recommendedId} />
+                    </div>
                   </td>
                   <td className="px-5 py-4">
                     <Badge variant="secondary" className="text-xs">{o.type}</Badge>
@@ -242,12 +246,17 @@ const MobileCards = ({ computedOffers, onToggleLinkage, recommendedId, onAdvance
             className={`rounded-xl border overflow-hidden ${o.isExternal ? "bg-destructive/5 border-destructive/20" : "bg-card"} ${o.id === recommendedId ? "border-primary ring-1 ring-primary/20" : ""}`}
           >
             {/* Header */}
-            <div className="px-4 py-3 flex items-center justify-between border-b bg-muted/30">
-              <div className="flex items-center gap-2">
-                <BankLogo bankName={o.bankName} logoColor={o.logoColor} size="sm" />
-                {o.id === recommendedId && <Star className="h-3.5 w-3.5 text-primary fill-primary" />}
+            <div className="px-4 py-3 border-b bg-muted/30">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <BankLogo bankName={o.bankName} logoColor={o.logoColor} size="sm" />
+                  {o.id === recommendedId && <Star className="h-3.5 w-3.5 text-primary fill-primary" />}
+                </div>
+                <Badge variant="secondary" className="text-xs">{o.type}</Badge>
               </div>
-              <Badge variant="secondary" className="text-xs">{o.type}</Badge>
+              <div className="mt-1.5">
+                <OfferBadgesInline co={co} allOffers={computedOffers} recommendedId={recommendedId} />
+              </div>
             </div>
 
             {/* Key metrics grid */}
