@@ -166,6 +166,9 @@ const DesktopTable = ({ computedOffers, onToggleLinkage, recommendedId, onAdvanc
                       <BankLogo bankName={o.bankName} logoColor={o.logoColor} size="md" />
                       {o.id === recommendedId && <Star className="h-4 w-4 text-primary fill-primary" />}
                     </div>
+                    <div className="mt-1">
+                      <OfferBadgesInline co={co} allOffers={computedOffers} recommendedId={recommendedId} />
+                    </div>
                   </td>
                   <td className="px-5 py-4">
                     <Badge variant="secondary" className="text-xs">{o.type}</Badge>
