@@ -90,8 +90,8 @@ const EnhancedRecommendedCard = ({
         {!o.isExternal && activeLinkages.length > 0 && (
           <div className="mb-8">
             <p className="text-xs text-muted-foreground mb-2.5 flex items-center gap-1">
-              Vinculación requerida ({activeLinkages.length})
-              <InfoTooltip text="La vinculación son productos que el banco puede pedirte para mejorar las condiciones, como nómina, seguros o tarjetas." />
+              Bonificación requerida ({activeLinkages.length})
+              <InfoTooltip text="La bonificación son productos que el banco puede pedirte para mejorar las condiciones, como nómina, seguros o tarjetas." />
             </p>
             <div className="flex flex-wrap gap-1.5">
               {activeLinkages.map((v) => (

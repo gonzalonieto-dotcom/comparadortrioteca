@@ -37,8 +37,8 @@ const WhyWeRecommend = forwardRef<HTMLDivElement, WhyWeRecommendProps>(
     if (activeLinkages.length <= 2) {
       reasons.push({
         icon: <Shield className="h-5 w-5 text-accent flex-shrink-0" />,
-        title: "Menor carga de vinculación",
-        text: "Requiere menos productos vinculados, lo que significa menos compromisos adicionales.",
+        title: "Menor carga de bonificación",
+        text: "Requiere menos productos contratados, lo que significa menos compromisos adicionales.",
       });
     }
 
