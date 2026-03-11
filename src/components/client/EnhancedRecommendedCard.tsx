@@ -101,6 +101,16 @@ const EnhancedRecommendedCard = ({
           </div>
         )}
 
+        {/* Key advantage from bank */}
+        {o.advantages && o.advantages.length > 0 && (
+          <div className="mb-8 flex items-start gap-3.5 bg-primary/5 border border-primary/10 rounded-xl px-5 py-4">
+            <Star className="h-5 w-5 text-accent flex-shrink-0 mt-0.5" />
+            <div>
+              <p className="text-sm font-medium text-foreground">{o.advantages[0]}</p>
+            </div>
+          </div>
+        )}
+
         {/* Explanation */}
         <p className="text-sm text-muted-foreground mb-8 leading-relaxed max-w-xl">
           {isCouple
