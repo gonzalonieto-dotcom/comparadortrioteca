@@ -23,6 +23,7 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { InfoTooltip } from "@/components/InfoTooltip";
 import { Switch } from "@/components/ui/switch";
 import { BankLogo } from "@/lib/bankLogos";
+import { OfferBadgesInline } from "@/components/client/OfferBadges";
 
 
 interface OfferTableProps {
