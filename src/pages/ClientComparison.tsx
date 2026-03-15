@@ -7,7 +7,7 @@ import LoanHeader from "@/components/LoanHeader";
 import OfferTable from "@/components/OfferTable";
 import CostBreakdown from "@/components/CostBreakdown";
 import InterestBarChart from "@/components/InterestBarChart";
-import ConsiderationCards from "@/components/ConsiderationCards";
+
 import FAQCopilot from "@/components/FAQCopilot";
 import AmortizationTable from "@/components/AmortizationTable";
 import AdvanceModal from "@/components/AdvanceModal";
