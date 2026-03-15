@@ -232,7 +232,7 @@ const OperationEditor = () => {
       toast.error("Publica la comparativa antes de copiar el link");
       return;
     }
-    navigator.clipboard.writeText(`${window.location.origin}/c/${shareToken}`);
+    navigator.clipboard.writeText(`${PUBLIC_BASE_URL}/c/${shareToken}`);
     toast.success("Link copiado");
   };
 
