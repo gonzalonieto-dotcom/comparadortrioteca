@@ -20,6 +20,8 @@ import { toast } from "sonner";
 import { ArrowLeft, Plus, Save, Copy } from "lucide-react";
 import triotecaLogo from "@/assets/trioteca-logo-vert.png";
 
+const PUBLIC_BASE_URL = "https://trioteca-offer-clarity.lovable.app";
+
 const MAX_OFFERS = 5;
 
 const OperationEditor = () => {
@@ -230,7 +232,7 @@ const OperationEditor = () => {
       toast.error("Publica la comparativa antes de copiar el link");
       return;
     }
-    navigator.clipboard.writeText(`${window.location.origin}/c/${shareToken}`);
+    navigator.clipboard.writeText(`${PUBLIC_BASE_URL}/c/${shareToken}`);
     toast.success("Link copiado");
   };
 

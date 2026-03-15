@@ -11,6 +11,8 @@ import { toast } from "sonner";
 import { Plus, Pencil, Trash2, Copy, LogOut, Eye, EyeOff } from "lucide-react";
 import triotecaLogo from "@/assets/trioteca-logo-vert.png";
 
+const PUBLIC_BASE_URL = "https://trioteca-offer-clarity.lovable.app";
+
 const Operations = () => {
   const { user, signOut, loading: authLoading } = useAuth();
   const navigate = useNavigate();
@@ -84,7 +86,7 @@ const Operations = () => {
       toast.error("Publica la comparativa antes de copiar el link");
       return;
     }
-    navigator.clipboard.writeText(`${window.location.origin}/c/${op.share_token}`);
+    navigator.clipboard.writeText(`${PUBLIC_BASE_URL}/c/${op.share_token}`);
     toast.success("Link copiado al portapapeles");
   };
 
