@@ -229,8 +229,7 @@ const ClientComparison = () => {
             />
           )}
 
-          {/* 5. Objection handling */}
-          <BankChangeObjection />
+          {/* (Objection handling moved below amortization) */}
 
           {/* 6. Offer comparison table */}
           <section>
