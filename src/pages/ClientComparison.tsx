@@ -281,14 +281,8 @@ const ClientComparison = () => {
             </CollapsibleContent>
           </Collapsible>
 
-          {/* 9. Consideration cards */}
-          <section>
-            <div className="mb-5">
-              <h2 className="text-lg font-semibold text-foreground">Puntos clave por banco</h2>
-              <p className="text-sm text-muted-foreground mt-1">Resumen rápido de ventajas y puntos a considerar.</p>
-            </div>
-            <ConsiderationCards offers={offers} />
-          </section>
+          {/* Objection handling */}
+          <BankChangeObjection />
 
           {/* 10. Decision summary + final CTA */}
           {recommended && (
