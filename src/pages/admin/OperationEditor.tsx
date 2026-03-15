@@ -20,6 +20,8 @@ import { toast } from "sonner";
 import { ArrowLeft, Plus, Save, Copy } from "lucide-react";
 import triotecaLogo from "@/assets/trioteca-logo-vert.png";
 
+const PUBLIC_BASE_URL = "https://trioteca-offer-clarity.lovable.app";
+
 const MAX_OFFERS = 5;
 
 const OperationEditor = () => {
