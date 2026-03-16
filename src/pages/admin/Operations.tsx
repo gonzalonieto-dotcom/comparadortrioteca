@@ -16,6 +16,7 @@ const PUBLIC_BASE_URL = "https://trioteca-offer-clarity.lovable.app";
 
 const Operations = () => {
   const { user, signOut, loading: authLoading } = useAuth();
+  const { isAdmin } = useRole();
   const navigate = useNavigate();
   const [operations, setOperations] = useState<DbOperation[]>([]);
   const [loading, setLoading] = useState(true);
