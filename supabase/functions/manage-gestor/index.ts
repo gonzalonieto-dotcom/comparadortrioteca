@@ -94,6 +94,21 @@ Deno.serve(async (req) => {
       });
     }
 
+    if (action === "reset_password") {
+      if (!user_id || !password) {
+        return new Response(JSON.stringify({ error: "user_id y password requeridos" }), { status: 400, headers: corsHeaders });
+      }
+
+      const { error: resetError } = await adminClient.auth.admin.updateUserById(user_id, { password });
+      if (resetError) {
+        return new Response(JSON.stringify({ error: resetError.message }), { status: 400, headers: corsHeaders });
+      }
+
+      return new Response(JSON.stringify({ success: true }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     return new Response(JSON.stringify({ error: "Acción no válida" }), { status: 400, headers: corsHeaders });
   } catch (err) {
     return new Response(JSON.stringify({ error: err.message }), { status: 500, headers: corsHeaders });
