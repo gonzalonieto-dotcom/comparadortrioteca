@@ -33,6 +33,7 @@ const App = () => (
           <Route path="/admin/login" element={<Login />} />
           <Route path="/admin/dashboard" element={<Operations />} />
           <Route path="/admin/dashboard/:id" element={<OperationEditor />} />
+          <Route path="/admin/users" element={<UserManagement />} />
           <Route path="/c/:token" element={<ClientComparison />} />
           {/* Legacy routes */}
           <Route path="/login" element={<Navigate to="/admin/login" replace />} />

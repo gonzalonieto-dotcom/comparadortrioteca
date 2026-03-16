@@ -5,3 +5,9 @@ verify_jwt = false
 
 [functions.parse-offer-pdf]
 verify_jwt = false
+
+[functions.list-gestors]
+verify_jwt = false
+
+[functions.manage-gestor]
+verify_jwt = false
