@@ -28,6 +28,8 @@ const UserManagement = () => {
   const [users, setUsers] = useState<GestorUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [deleteUser, setDeleteUser] = useState<GestorUser | null>(null);
+  const [resetPwUser, setResetPwUser] = useState<GestorUser | null>(null);
+  const [resetPwValue, setResetPwValue] = useState("");
   const [showCreate, setShowCreate] = useState(false);
   const [newEmail, setNewEmail] = useState("");
   const [newPassword, setNewPassword] = useState("");
