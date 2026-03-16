@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
+import { useRole } from "@/hooks/useRole";
 import { fetchMyOperations, createOperation, deleteOperation, updateOperation, type DbOperation } from "@/hooks/useOperation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -8,13 +9,14 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
-import { Plus, Pencil, Trash2, Copy, LogOut, Eye, EyeOff } from "lucide-react";
+import { Plus, Pencil, Trash2, Copy, LogOut, Eye, EyeOff, Users } from "lucide-react";
 import triotecaLogo from "@/assets/trioteca-logo-vert.png";
 
 const PUBLIC_BASE_URL = "https://trioteca-offer-clarity.lovable.app";
 
 const Operations = () => {
   const { user, signOut, loading: authLoading } = useAuth();
+  const { isAdmin } = useRole();
   const navigate = useNavigate();
   const [operations, setOperations] = useState<DbOperation[]>([]);
   const [loading, setLoading] = useState(true);
@@ -100,6 +102,11 @@ const Operations = () => {
         <div className="max-w-5xl mx-auto px-4 py-4 flex items-center justify-between">
           <img src={triotecaLogo} alt="Trioteca" className="h-8" />
           <div className="flex items-center gap-3">
+            {isAdmin && (
+              <Button variant="outline" size="sm" onClick={() => navigate("/admin/users")}>
+                <Users className="h-4 w-4 mr-1" />Usuarios
+              </Button>
+            )}
             <span className="text-xs text-muted-foreground hidden sm:block">{user?.email}</span>
             <Button variant="ghost" size="sm" onClick={() => { signOut(); navigate("/admin/login"); }}>
               <LogOut className="h-4 w-4" />

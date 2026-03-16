@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route, Navigate, useParams } from "react-router-
 import Login from "./pages/Login";
 import Operations from "./pages/admin/Operations";
 import OperationEditor from "./pages/admin/OperationEditor";
+import UserManagement from "./pages/admin/UserManagement";
 import ClientComparison from "./pages/ClientComparison";
 import NotFound from "./pages/NotFound";
 
@@ -32,6 +33,7 @@ const App = () => (
           <Route path="/admin/login" element={<Login />} />
           <Route path="/admin/dashboard" element={<Operations />} />
           <Route path="/admin/dashboard/:id" element={<OperationEditor />} />
+          <Route path="/admin/users" element={<UserManagement />} />
           <Route path="/c/:token" element={<ClientComparison />} />
           {/* Legacy routes */}
           <Route path="/login" element={<Navigate to="/admin/login" replace />} />

@@ -69,33 +69,6 @@ const Login = () => {
               {isSignUp ? "¿Ya tienes cuenta? Inicia sesión" : "¿No tienes cuenta? Regístrate"}
             </button>
           </div>
-          <div className="mt-4 p-3 rounded-md bg-muted text-xs text-muted-foreground space-y-1">
-            <p className="font-medium">Credenciales de prueba (gestor):</p>
-            <p>Email: <code className="bg-background px-1 rounded">gestor@trioteca.test</code></p>
-            <p>Pass: <code className="bg-background px-1 rounded">gestor123</code></p>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className="w-full mt-2"
-              onClick={async () => {
-                setLoading(true);
-                try {
-                  const { error } = await signIn("gestor@trioteca.test", "gestor123");
-                  if (error) throw error;
-                  toast.success("Sesión iniciada");
-                  navigate("/admin/dashboard");
-                } catch (err: any) {
-                  toast.error(err.message || "Error al acceder");
-                } finally {
-                  setLoading(false);
-                }
-              }}
-              disabled={loading}
-            >
-              {loading ? "Accediendo..." : "Acceder con credenciales de prueba"}
-            </Button>
-          </div>
         </CardContent>
       </Card>
     </div>
