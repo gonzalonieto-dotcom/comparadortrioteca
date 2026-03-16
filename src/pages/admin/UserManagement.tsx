@@ -222,9 +222,14 @@ const UserManagement = () => {
                       <TableCell>{new Date(u.created_at).toLocaleDateString("es-ES")}</TableCell>
                       <TableCell className="text-right">
                         {u.id !== user?.id && (
-                          <Button variant="ghost" size="sm" onClick={() => setDeleteUser(u)}>
-                            <Trash2 className="h-4 w-4 text-destructive" />
-                          </Button>
+                          <div className="flex justify-end gap-1">
+                            <Button variant="ghost" size="sm" onClick={() => setResetPwUser(u)} title="Cambiar contraseña">
+                              <KeyRound className="h-4 w-4" />
+                            </Button>
+                            <Button variant="ghost" size="sm" onClick={() => setDeleteUser(u)}>
+                              <Trash2 className="h-4 w-4 text-destructive" />
+                            </Button>
+                          </div>
                         )}
                       </TableCell>
                     </TableRow>
