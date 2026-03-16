@@ -256,6 +256,26 @@ const UserManagement = () => {
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
+
+        <AlertDialog open={!!resetPwUser} onOpenChange={(open) => { if (!open) { setResetPwUser(null); setResetPwValue(""); } }}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Cambiar contraseña</AlertDialogTitle>
+              <AlertDialogDescription>
+                Nueva contraseña para <strong>{resetPwUser?.email}</strong>
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <div className="px-6 pb-2">
+              <Input type="password" placeholder="Mínimo 6 caracteres" minLength={6} value={resetPwValue} onChange={(e) => setResetPwValue(e.target.value)} />
+            </div>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+              <AlertDialogAction onClick={handleResetPassword} disabled={resetPwValue.length < 6}>
+                Guardar
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </main>
     </div>
   );
