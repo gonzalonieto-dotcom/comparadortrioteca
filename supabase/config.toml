@@ -11,3 +11,6 @@ verify_jwt = false
 
 [functions.manage-gestor]
 verify_jwt = false
+
+[functions.reset-admin-pw]
+verify_jwt = false
