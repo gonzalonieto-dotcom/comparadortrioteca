@@ -9,7 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
-import { Plus, Pencil, Trash2, Copy, LogOut, Eye, EyeOff } from "lucide-react";
+import { Plus, Pencil, Trash2, Copy, LogOut, Eye, EyeOff, Users } from "lucide-react";
 import triotecaLogo from "@/assets/trioteca-logo-vert.png";
 
 const PUBLIC_BASE_URL = "https://trioteca-offer-clarity.lovable.app";
