@@ -119,6 +119,25 @@ const UserManagement = () => {
     }
   };
 
+  const handleResetPassword = async () => {
+    if (!resetPwUser || !resetPwValue) return;
+    try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData.session?.access_token;
+      const res = await supabase.functions.invoke("manage-gestor", {
+        headers: { Authorization: `Bearer ${token}` },
+        body: { action: "reset_password", user_id: resetPwUser.id, password: resetPwValue },
+      });
+      if (res.error) throw new Error(res.error.message);
+      if (res.data?.error) throw new Error(res.data.error);
+      toast.success("Contraseña actualizada");
+    } catch (err: any) {
+      toast.error(err.message);
+    } finally {
+      setResetPwUser(null);
+      setResetPwValue("");
+    }
+
   if (authLoading || roleLoading) {
     return <div className="min-h-screen flex items-center justify-center">Cargando...</div>;
   }
