@@ -11,3 +11,4 @@ verify_jwt = false
 
 [functions.manage-gestor]
 verify_jwt = false
+

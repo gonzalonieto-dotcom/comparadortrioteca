@@ -11,7 +11,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
-import { ArrowLeft, Plus, Trash2, LogOut, Users } from "lucide-react";
+import { ArrowLeft, Plus, Trash2, LogOut, Users, KeyRound } from "lucide-react";
 import triotecaLogo from "@/assets/trioteca-logo-vert.png";
 
 interface GestorUser {
@@ -28,6 +28,8 @@ const UserManagement = () => {
   const [users, setUsers] = useState<GestorUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [deleteUser, setDeleteUser] = useState<GestorUser | null>(null);
+  const [resetPwUser, setResetPwUser] = useState<GestorUser | null>(null);
+  const [resetPwValue, setResetPwValue] = useState("");
   const [showCreate, setShowCreate] = useState(false);
   const [newEmail, setNewEmail] = useState("");
   const [newPassword, setNewPassword] = useState("");
@@ -117,6 +119,26 @@ const UserManagement = () => {
     }
   };
 
+  const handleResetPassword = async () => {
+    if (!resetPwUser || !resetPwValue) return;
+    try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData.session?.access_token;
+      const res = await supabase.functions.invoke("manage-gestor", {
+        headers: { Authorization: `Bearer ${token}` },
+        body: { action: "reset_password", user_id: resetPwUser.id, password: resetPwValue },
+      });
+      if (res.error) throw new Error(res.error.message);
+      if (res.data?.error) throw new Error(res.data.error);
+      toast.success("Contraseña actualizada");
+    } catch (err: any) {
+      toast.error(err.message);
+    } finally {
+      setResetPwUser(null);
+      setResetPwValue("");
+    }
+  };
+
   if (authLoading || roleLoading) {
     return <div className="min-h-screen flex items-center justify-center">Cargando...</div>;
   }
@@ -201,9 +223,14 @@ const UserManagement = () => {
                       <TableCell>{new Date(u.created_at).toLocaleDateString("es-ES")}</TableCell>
                       <TableCell className="text-right">
                         {u.id !== user?.id && (
-                          <Button variant="ghost" size="sm" onClick={() => setDeleteUser(u)}>
-                            <Trash2 className="h-4 w-4 text-destructive" />
-                          </Button>
+                          <div className="flex justify-end gap-1">
+                            <Button variant="ghost" size="sm" onClick={() => setResetPwUser(u)} title="Cambiar contraseña">
+                              <KeyRound className="h-4 w-4" />
+                            </Button>
+                            <Button variant="ghost" size="sm" onClick={() => setDeleteUser(u)}>
+                              <Trash2 className="h-4 w-4 text-destructive" />
+                            </Button>
+                          </div>
                         )}
                       </TableCell>
                     </TableRow>
@@ -226,6 +253,26 @@ const UserManagement = () => {
               <AlertDialogCancel>Cancelar</AlertDialogCancel>
               <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
                 Eliminar
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
+        <AlertDialog open={!!resetPwUser} onOpenChange={(open) => { if (!open) { setResetPwUser(null); setResetPwValue(""); } }}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Cambiar contraseña</AlertDialogTitle>
+              <AlertDialogDescription>
+                Nueva contraseña para <strong>{resetPwUser?.email}</strong>
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <div className="px-6 pb-2">
+              <Input type="password" placeholder="Mínimo 6 caracteres" minLength={6} value={resetPwValue} onChange={(e) => setResetPwValue(e.target.value)} />
+            </div>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+              <AlertDialogAction onClick={handleResetPassword} disabled={resetPwValue.length < 6}>
+                Guardar
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>

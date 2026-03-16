@@ -1,26 +1,54 @@
 
 
-## Problema
+## Plan: Fix PDF linkage mapping + Add text-paste extraction + AI disclaimer
 
-Tu cuenta `gonzalo.nieto@trioteca.com` existe (user_id: `3e770a77-eabb-418b-9f73-81da64214904`) pero la contraseña almacenada no coincide con la que estás usando. Probablemente fue creada con una contraseña diferente antes de que configuráramos el panel.
+### Problem Analysis
 
-## Solución
+1. **Admin linkages not showing weight/cost from PDF**: The `LinkageEditor` forces exactly 3 preset labels and matches by exact string. PDF extraction may return different label names (e.g., "Nómina" vs "Domiciliación de nómina"), so extracted data gets discarded and replaced with zeros.
 
-Resetear la contraseña usando la API de administrador del backend.
+2. **No text-paste extraction option**: Currently only PDF upload exists. User wants a textarea to paste offer text and extract data via the same AI.
 
-### Pasos
+3. **No AI disclaimer on client side**: Need a fun message + green checkbox on the client `ExternalOfferForm`.
 
-1. **Crear una edge function temporal** `reset-admin-pw` que use el service role key para actualizar la contraseña del usuario admin (`3e770a77-eabb-418b-9f73-81da64214904`) a `Benja@0508` usando `auth.admin.updateUserById()`.
+---
 
-2. **Invocar la función** para que se ejecute el reset.
+### Changes
 
-3. **Eliminar la función temporal** una vez reseteada la contraseña (por seguridad).
+#### 1. Fix admin linkage mapping from PDF (`PdfDropZone.tsx`)
 
-4. **Agregar acción "reset_password"** al `manage-gestor` existente para que en el futuro puedas resetear contraseñas de gestores desde el panel de usuarios sin necesidad de intervención técnica.
+Update the edge function prompt to constrain linkage labels to exactly the 3 preset names: `"Domiciliación de nómina"`, `"Seguro hogar"`, `"Seguro de vida"`.
 
-### Cambios en archivos
+Also update `PdfDropZone.tsx` to fuzzy-match extracted linkage labels to the nearest preset (e.g., "Nómina" → "Domiciliación de nómina", "Seguro vida" → "Seguro de vida") before passing to `onExtracted`. This ensures `LinkageEditor`'s normalization finds the data.
 
-- **Nuevo temporal**: `supabase/functions/reset-admin-pw/index.ts` (se elimina después)
-- **Editado**: `supabase/functions/manage-gestor/index.ts` — agregar acción `reset_password`
-- **Editado**: `src/pages/admin/UserManagement.tsx` — agregar botón para resetear contraseña de un gestor
+#### 2. Add text-paste extraction option — Admin side (`PdfDropZone.tsx`)
+
+Expand the `PdfDropZone` component to include a toggle/tab: "PDF" | "Pegar texto". When "Pegar texto" is selected, show a textarea where the user can paste offer details. On submit, call a new edge function (or extend `parse-offer-pdf`) that sends the text (instead of a PDF) to the same AI extraction pipeline. Map the response identically.
+
+**Edge function change** (`parse-offer-pdf/index.ts`): Accept either `pdf_base64` or `text_content` in the request body. If `text_content` is provided, send it as a plain text message instead of a file attachment.
+
+#### 3. Add text-paste extraction option — Client side (`ExternalOfferForm.tsx`)
+
+Add a similar "Pegar texto" option alongside the existing PDF dropzone in the client-facing form. Same edge function call, same response mapping.
+
+#### 4. AI disclaimer + confirmation checkbox — Client side (`ExternalOfferForm.tsx`)
+
+After PDF/text extraction succeeds, show:
+- A light-hearted message: *"🤖 ¡Ojo! Verifica que los datos extraídos son correctos. Como buena IA, a veces me invento cosas con mucha convicción."*
+- A green checkbox that the user must tick before "Añadir a la comparativa" becomes enabled.
+
+#### 5. Update edge function prompt
+
+In `parse-offer-pdf/index.ts`, update `SYSTEM_PROMPT` to:
+- Constrain linkage labels to exactly: "Domiciliación de nómina", "Seguro hogar", "Seguro de vida"
+- Handle text input mode (when no PDF is attached)
+
+---
+
+### Files to modify
+
+| File | Change |
+|------|--------|
+| `supabase/functions/parse-offer-pdf/index.ts` | Accept `text_content` param; constrain linkage labels in prompt |
+| `src/components/admin/PdfDropZone.tsx` | Add text-paste tab; fuzzy-match linkage labels to presets |
+| `src/components/ExternalOfferForm.tsx` | Add text-paste option; add AI disclaimer + confirmation checkbox |
 
