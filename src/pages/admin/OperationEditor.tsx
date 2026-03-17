@@ -274,19 +274,19 @@ const OperationEditor = () => {
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
               <div className="md:col-span-4">
                 <Label>Nombre del cliente</Label>
-                <Input value={op.client_name} onChange={(e) => setOp({ ...op, client_name: e.target.value })} placeholder="Ej: Juan García" />
+                <Input value={op.client_name} onChange={(e) => setOp(prev => ({ ...prev, client_name: e.target.value }))} placeholder="Ej: Juan García" />
               </div>
               <div>
                 <Label>Precio vivienda €</Label>
-                <Input type="number" value={op.purchase_price} onChange={(e) => setOp({ ...op, purchase_price: +e.target.value })} />
+                <Input type="number" value={op.purchase_price} onFocus={(e) => e.target.select()} onChange={(e) => setOp(prev => ({ ...prev, purchase_price: +e.target.value }))} />
               </div>
               <div>
                 <Label>Importe préstamo €</Label>
-                <Input type="number" value={op.loan_amount} onChange={(e) => setOp({ ...op, loan_amount: +e.target.value })} />
+                <Input type="number" value={op.loan_amount} onFocus={(e) => e.target.select()} onChange={(e) => setOp(prev => ({ ...prev, loan_amount: +e.target.value }))} />
               </div>
               <div>
                 <Label>Plazo (años)</Label>
-                <Input type="number" value={op.term_years} onChange={(e) => setOp({ ...op, term_years: +e.target.value })} />
+                <Input type="number" value={op.term_years} onFocus={(e) => e.target.select()} onChange={(e) => setOp(prev => ({ ...prev, term_years: +e.target.value }))} />
               </div>
             </div>
           </CardContent>

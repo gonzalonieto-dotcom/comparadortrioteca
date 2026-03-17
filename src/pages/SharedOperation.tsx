@@ -70,11 +70,11 @@ const SharedOperation = () => {
           advantages: o.advantages || [],
           considerations: o.considerations || [],
           linkages: linkages
-            .filter((l: any) => l.offer_id === o.id)
+            .filter((l: any) => l.offer_id === o.id && l.is_active_default)
             .map((l: any) => ({
               id: l.id,
               label: l.label,
-              isActive: l.is_active_default,
+              isActive: true,
               discountWeightPct: l.discount_weight_pct,
               annualCostEUR: l.annual_cost,
             })),
