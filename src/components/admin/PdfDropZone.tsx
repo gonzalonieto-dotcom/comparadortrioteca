@@ -6,7 +6,6 @@ import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import type { OfferFormData } from "./OfferEditor";
 import type { LinkageFormData } from "./LinkageEditor";
-import { PRESET_LINKAGES } from "./LinkageEditor";
 
 type Status = "idle" | "dragging" | "processing" | "done" | "error";
 
