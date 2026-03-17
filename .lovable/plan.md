@@ -1,54 +1,32 @@
 
 
-## Plan: Fix PDF linkage mapping + Add text-paste extraction + AI disclaimer
+## Corrección de bugs y mejoras reportadas
 
-### Problem Analysis
+### Bugs identificados y soluciones
 
-1. **Admin linkages not showing weight/cost from PDF**: The `LinkageEditor` forces exactly 3 preset labels and matches by exact string. PDF extraction may return different label names (e.g., "Nómina" vs "Domiciliación de nómina"), so extracted data gets discarded and replaced with zeros.
+#### 1. Valores se pierden al cambiar campos rápidamente (bug del dígito perdido)
+**Causa raíz**: En `OperationEditor.tsx` línea 281-289, cada `onChange` captura `op` en un closure. Si cambias `purchase_price` y luego `loan_amount` rápido, el segundo cambio sobrescribe el primero porque usa el `op` viejo.
 
-2. **No text-paste extraction option**: Currently only PDF upload exists. User wants a textarea to paste offer text and extract data via the same AI.
+**Fix**: Cambiar todos los `setOp({ ...op, campo: valor })` a `setOp(prev => ({ ...prev, campo: valor }))` (actualización funcional).
 
-3. **No AI disclaimer on client side**: Need a fun message + green checkbox on the client `ExternalOfferForm`.
+#### 2. El cero no se borra al hacer clic en inputs numéricos
+**Fix**: Agregar `onFocus={(e) => e.target.select()}` a todos los `<Input type="number">` en `OperationEditor.tsx` y `OfferEditor.tsx`. Así al hacer clic, se selecciona el contenido y al escribir se reemplaza.
 
----
+#### 3. Linkages inactivas se muestran en el front del cliente (SharedOperation.tsx)
+**Causa raíz**: En `SharedOperation.tsx` línea 72-80, se mapean TODAS las linkages sin filtrar por `is_active_default`. `ClientComparison.tsx` sí lo filtra (línea 58), pero `SharedOperation.tsx` no.
 
-### Changes
+**Fix**: Agregar `.filter((l: any) => l.is_active_default)` en `SharedOperation.tsx` al igual que en `ClientComparison.tsx`.
 
-#### 1. Fix admin linkage mapping from PDF (`PdfDropZone.tsx`)
+#### 4. Coste total no considera todas las bonificaciones
+**Causa raíz**: El cálculo es correcto en el motor (`calcBonifiedTIN` suma todos los descuentos activos). El problema real era que las linkages no se mostraban/activaban correctamente (bug #3). Con el fix de visibilidad, las bonificaciones activas se aplicarán al TIN y el coste total reflejará el descuento correcto.
 
-Update the edge function prompt to constrain linkage labels to exactly the 3 preset names: `"Domiciliación de nómina"`, `"Seguro hogar"`, `"Seguro de vida"`.
+#### 5. Cambio de pestaña del navegador borra datos
+**Causa raíz**: Mismo bug que #1 — el stale closure. Los datos no se "borran" realmente, sino que se sobrescriben con valores antiguos al interactuar después de volver.
 
-Also update `PdfDropZone.tsx` to fuzzy-match extracted linkage labels to the nearest preset (e.g., "Nómina" → "Domiciliación de nómina", "Seguro vida" → "Seguro de vida") before passing to `onExtracted`. This ensures `LinkageEditor`'s normalization finds the data.
+### Archivos a modificar
 
-#### 2. Add text-paste extraction option — Admin side (`PdfDropZone.tsx`)
-
-Expand the `PdfDropZone` component to include a toggle/tab: "PDF" | "Pegar texto". When "Pegar texto" is selected, show a textarea where the user can paste offer details. On submit, call a new edge function (or extend `parse-offer-pdf`) that sends the text (instead of a PDF) to the same AI extraction pipeline. Map the response identically.
-
-**Edge function change** (`parse-offer-pdf/index.ts`): Accept either `pdf_base64` or `text_content` in the request body. If `text_content` is provided, send it as a plain text message instead of a file attachment.
-
-#### 3. Add text-paste extraction option — Client side (`ExternalOfferForm.tsx`)
-
-Add a similar "Pegar texto" option alongside the existing PDF dropzone in the client-facing form. Same edge function call, same response mapping.
-
-#### 4. AI disclaimer + confirmation checkbox — Client side (`ExternalOfferForm.tsx`)
-
-After PDF/text extraction succeeds, show:
-- A light-hearted message: *"🤖 ¡Ojo! Verifica que los datos extraídos son correctos. Como buena IA, a veces me invento cosas con mucha convicción."*
-- A green checkbox that the user must tick before "Añadir a la comparativa" becomes enabled.
-
-#### 5. Update edge function prompt
-
-In `parse-offer-pdf/index.ts`, update `SYSTEM_PROMPT` to:
-- Constrain linkage labels to exactly: "Domiciliación de nómina", "Seguro hogar", "Seguro de vida"
-- Handle text input mode (when no PDF is attached)
-
----
-
-### Files to modify
-
-| File | Change |
-|------|--------|
-| `supabase/functions/parse-offer-pdf/index.ts` | Accept `text_content` param; constrain linkage labels in prompt |
-| `src/components/admin/PdfDropZone.tsx` | Add text-paste tab; fuzzy-match linkage labels to presets |
-| `src/components/ExternalOfferForm.tsx` | Add text-paste option; add AI disclaimer + confirmation checkbox |
+1. **`src/pages/admin/OperationEditor.tsx`** — Actualización funcional de `setOp` + `onFocus` select en inputs numéricos
+2. **`src/pages/SharedOperation.tsx`** — Filtrar linkages por `is_active_default`
+3. **`src/components/admin/OfferEditor.tsx`** — `onFocus` select en todos los inputs numéricos
+4. **`src/components/admin/LinkageEditor.tsx`** — `onFocus` select en inputs numéricos
 
