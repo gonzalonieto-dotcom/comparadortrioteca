@@ -75,11 +75,11 @@ const LinkageEditor = ({ linkages, onChange }: Props) => {
             </div>
             <div>
               <Label className="text-xs">Peso %</Label>
-              <Input type="number" step="0.01" value={l.discount_weight_pct} onChange={(e) => update(i, { discount_weight_pct: +e.target.value })} />
+              <Input type="number" step="0.01" value={l.discount_weight_pct} onFocus={(e) => e.target.select()} onChange={(e) => update(i, { discount_weight_pct: +e.target.value })} />
             </div>
             <div>
               <Label className="text-xs">Coste €/año</Label>
-              <Input type="number" step="0.01" value={l.annual_cost} onChange={(e) => update(i, { annual_cost: +e.target.value })} />
+              <Input type="number" step="0.01" value={l.annual_cost} onFocus={(e) => e.target.select()} onChange={(e) => update(i, { annual_cost: +e.target.value })} />
             </div>
             <div className="flex items-end pb-1">
               {!isBase && (

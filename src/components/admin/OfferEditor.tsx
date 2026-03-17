@@ -246,15 +246,15 @@ const OfferEditor = ({ offer, index, onChange, onDelete, loanAmount, termYears, 
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
               <div>
                 <Label className="text-xs">Comisión amort. %</Label>
-                <Input type="number" step="0.01" value={offer.amortization_fee_pct} onChange={(e) => update({ amortization_fee_pct: +e.target.value })} />
+                <Input type="number" step="0.01" value={offer.amortization_fee_pct} onFocus={(e) => e.target.select()} onChange={(e) => update({ amortization_fee_pct: +e.target.value })} />
               </div>
               <div>
                 <Label className="text-xs">Gastos iniciales €</Label>
-                <Input type="number" step="0.01" value={offer.upfront_costs} onChange={(e) => update({ upfront_costs: +e.target.value })} />
+                <Input type="number" step="0.01" value={offer.upfront_costs} onFocus={(e) => e.target.select()} onChange={(e) => update({ upfront_costs: +e.target.value })} />
               </div>
               <div>
                 <Label className="text-xs">Coste cuenta €/mes</Label>
-                <Input type="number" step="0.01" value={offer.monthly_account_cost} onChange={(e) => update({ monthly_account_cost: +e.target.value })} />
+                <Input type="number" step="0.01" value={offer.monthly_account_cost} onFocus={(e) => e.target.select()} onChange={(e) => update({ monthly_account_cost: +e.target.value })} />
               </div>
               <div>
                 <Label className="text-xs">Euríbor %</Label>
