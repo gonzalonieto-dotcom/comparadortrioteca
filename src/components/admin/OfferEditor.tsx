@@ -205,7 +205,7 @@ const OfferEditor = ({ offer, index, onChange, onDelete, loanAmount, termYears, 
                 <Label className="text-xs">
                   {offer.type === "Mixto" ? "TIN bonificado primer tramo %" : "TIN bonificado %"}
                 </Label>
-                <Input type="number" step="0.01" value={offer.base_tin} onChange={(e) => update({ base_tin: +e.target.value })} />
+                <Input type="number" step="0.01" value={offer.base_tin} onFocus={(e) => e.target.select()} onChange={(e) => update({ base_tin: +e.target.value })} />
               </div>
               <div>
                 <Label className="text-xs flex items-center gap-1">
