@@ -42,24 +42,21 @@ function mapExtracted(extracted: any): Partial<OfferFormData> {
   };
 
   if (extracted.linkages?.length) {
-    // Build a map keyed by preset label to aggregate values
+    // Build a map keyed by label to aggregate values; fuzzy-match presets
     const map = new Map<string, LinkageFormData>();
     for (const l of extracted.linkages) {
       const matched = matchLinkageLabel(l.label) || l.label;
-      // Only keep if it's a known preset
-      if (PRESET_LINKAGES.includes(matched)) {
-        const existing = map.get(matched);
-        if (existing) {
-          existing.discount_weight_pct += l.discount_weight_pct ?? 0;
-          existing.annual_cost += l.annual_cost ?? 0;
-        } else {
-          map.set(matched, {
-            label: matched,
-            is_active_default: true,
-            discount_weight_pct: l.discount_weight_pct ?? 0,
-            annual_cost: l.annual_cost ?? 0,
-          });
-        }
+      const existing = map.get(matched);
+      if (existing) {
+        existing.discount_weight_pct += l.discount_weight_pct ?? 0;
+        existing.annual_cost += l.annual_cost ?? 0;
+      } else {
+        map.set(matched, {
+          label: matched,
+          is_active_default: true,
+          discount_weight_pct: l.discount_weight_pct ?? 0,
+          annual_cost: l.annual_cost ?? 0,
+        });
       }
     }
     patch.linkages = Array.from(map.values());
