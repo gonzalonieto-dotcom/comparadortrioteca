@@ -197,6 +197,7 @@ const SharedOperation = () => {
               recommendedId={recommended?.offer.id}
               onAdvance={handleAdvance}
               onDeleteOffer={handleDeleteOffer}
+              globalTermYears={defaults.termYears}
             />
           </section>
 

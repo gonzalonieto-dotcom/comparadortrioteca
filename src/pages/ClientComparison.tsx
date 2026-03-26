@@ -244,6 +244,7 @@ const ClientComparison = () => {
               recommendedId={recommended?.offer.id}
               onAdvance={handleAdvance}
               onDeleteOffer={handleDeleteOffer}
+              globalTermYears={defaults.termYears}
             />
             <div className="mt-5">
               <ExternalOfferForm
