@@ -30,7 +30,7 @@ const BANKS = Object.keys(BANK_PRESETS);
 
 const ChecklistManager = () => {
   const { user, loading: authLoading } = useAuth();
-  const { isAdmin } = useRole();
+  const { isAdmin, loading: roleLoading } = useRole();
   const navigate = useNavigate();
   const [selectedBank, setSelectedBank] = useState<string>("");
   const [items, setItems] = useState<ChecklistItem[]>([]);
