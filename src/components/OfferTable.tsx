@@ -173,6 +173,9 @@ const DesktopTable = ({ computedOffers, onToggleLinkage, recommendedId, onAdvanc
                   </td>
                   <td className="px-5 py-4">
                     <Badge variant="secondary" className="text-xs">{o.type}</Badge>
+                    {o.termYears && globalTermYears && o.termYears !== globalTermYears && (
+                      <Badge variant="outline" className="text-[10px] ml-1">{o.termYears} años</Badge>
+                    )}
                   </td>
                   <td className="px-5 py-4 text-right">
                     <span className="text-lg font-bold text-card-foreground">{co.bonifiedTIN.toFixed(2)} %</span>
