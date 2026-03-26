@@ -30,7 +30,7 @@ const BANKS = Object.keys(BANK_PRESETS);
 
 const ChecklistManager = () => {
   const { user, loading: authLoading } = useAuth();
-  const { isAdmin } = useRole();
+  const { isAdmin, loading: roleLoading } = useRole();
   const navigate = useNavigate();
   const [selectedBank, setSelectedBank] = useState<string>("");
   const [items, setItems] = useState<ChecklistItem[]>([]);
@@ -39,8 +39,8 @@ const ChecklistManager = () => {
   const [banksWithItems, setBanksWithItems] = useState<string[]>([]);
 
   useEffect(() => {
-    if (!authLoading && (!user || !isAdmin)) navigate("/admin/dashboard");
-  }, [user, authLoading, isAdmin, navigate]);
+    if (!authLoading && !roleLoading && (!user || !isAdmin)) navigate("/admin/dashboard");
+  }, [user, authLoading, roleLoading, isAdmin, navigate]);
 
   // Load banks that have checklist items
   useEffect(() => {
@@ -156,7 +156,7 @@ const ChecklistManager = () => {
     }
   };
 
-  if (authLoading) return <div className="min-h-screen flex items-center justify-center">Cargando...</div>;
+  if (authLoading || roleLoading) return <div className="min-h-screen flex items-center justify-center">Cargando...</div>;
 
   return (
     <div className="min-h-screen bg-background">
