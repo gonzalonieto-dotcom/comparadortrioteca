@@ -234,7 +234,7 @@ const DesktopTable = ({ computedOffers, onToggleLinkage, recommendedId, onAdvanc
 };
 
 /* ——— Mobile cards (show ALL data by default) ——— */
-const MobileCards = ({ computedOffers, onToggleLinkage, recommendedId, onAdvance, onDeleteOffer }: OfferTableProps) => {
+const MobileCards = ({ computedOffers, onToggleLinkage, recommendedId, onAdvance, onDeleteOffer, globalTermYears }: OfferTableProps) => {
   const sorted = [...computedOffers].sort((a, b) => a.totalCost - b.totalCost);
 
   return (
