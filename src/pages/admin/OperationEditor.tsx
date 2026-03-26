@@ -189,7 +189,8 @@ const OperationEditor = () => {
           advantages: offer.advantages,
           considerations: offer.considerations,
           sort_order: i,
-        });
+          term_years: offer.term_years_override,
+        } as any);
         await saveLinkages(saved.id, offer.linkages);
         await saveMixedPeriods(saved.id, offer.mixedPeriods);
       }
