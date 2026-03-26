@@ -156,7 +156,7 @@ const ChecklistManager = () => {
     }
   };
 
-  if (authLoading) return <div className="min-h-screen flex items-center justify-center">Cargando...</div>;
+  if (authLoading || roleLoading) return <div className="min-h-screen flex items-center justify-center">Cargando...</div>;
 
   return (
     <div className="min-h-screen bg-background">
