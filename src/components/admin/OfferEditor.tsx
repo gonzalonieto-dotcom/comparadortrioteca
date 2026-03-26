@@ -164,7 +164,11 @@ const OfferEditor = ({ offer, index, onChange, onDelete, loanAmount, termYears, 
         <CardHeader className="cursor-pointer" onClick={toggleExpanded}>
           <div className="flex items-center justify-between">
             <CardTitle className="text-base flex items-center gap-2">
-              <span className="font-medium text-card-foreground">{offer.bank_name || `Oferta ${index + 1}`}</span>
+              {offer.bank_name ? (
+                <BankLogo bankName={offer.bank_name} logoColor={offer.logo_color} size="md" />
+              ) : (
+                <span className="font-medium text-card-foreground">{`Oferta ${index + 1}`}</span>
+              )}
               <span className="text-xs text-muted-foreground font-normal">({offer.type})</span>
             </CardTitle>
             <div className="flex items-center gap-2">
