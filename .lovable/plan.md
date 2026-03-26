@@ -1,54 +1,50 @@
 
 
-## Plan: Fix PDF linkage mapping + Add text-paste extraction + AI disclaimer
+## Plazo personalizable por oferta
 
-### Problem Analysis
+### Enfoque
 
-1. **Admin linkages not showing weight/cost from PDF**: The `LinkageEditor` forces exactly 3 preset labels and matches by exact string. PDF extraction may return different label names (e.g., "Nómina" vs "Domiciliación de nómina"), so extracted data gets discarded and replaced with zeros.
+Tu idea es correcta: mantener el plazo global de la operación como valor por defecto, pero permitir que cada oferta individual pueda tener un plazo diferente. Así podés comparar la misma hipoteca a 20, 25 y 30 años dentro de una misma comparativa.
 
-2. **No text-paste extraction option**: Currently only PDF upload exists. User wants a textarea to paste offer text and extract data via the same AI.
+### Cambios
 
-3. **No AI disclaimer on client side**: Need a fun message + green checkbox on the client `ExternalOfferForm`.
+#### 1. Base de datos: nueva columna `term_years` en `offers`
 
----
+Agregar una columna nullable `term_years integer` en la tabla `offers`. Si es `NULL`, la oferta usa el plazo global de la operación. Si tiene valor, usa ese plazo específico.
 
-### Changes
+#### 2. Admin — `OfferEditor.tsx`: campo de plazo por oferta
 
-#### 1. Fix admin linkage mapping from PDF (`PdfDropZone.tsx`)
+Agregar un campo "Plazo (años)" en cada oferta con placeholder mostrando el valor global (ej: "30 — global"). Si el gestor lo deja vacío, hereda el global. Si pone un número, esa oferta se calcula con ese plazo.
 
-Update the edge function prompt to constrain linkage labels to exactly the 3 preset names: `"Domiciliación de nómina"`, `"Seguro hogar"`, `"Seguro de vida"`.
+Agregar `term_years_override: number | null` al `OfferFormData`.
 
-Also update `PdfDropZone.tsx` to fuzzy-match extracted linkage labels to the nearest preset (e.g., "Nómina" → "Domiciliación de nómina", "Seguro vida" → "Seguro de vida") before passing to `onExtracted`. This ensures `LinkageEditor`'s normalization finds the data.
+#### 3. Admin — `OperationEditor.tsx`: usar plazo de oferta en cálculos
 
-#### 2. Add text-paste extraction option — Admin side (`PdfDropZone.tsx`)
+En `handleSave`, al calcular TAE/cuota, usar `offer.term_years_override ?? op.term_years` en lugar de `op.term_years` fijo. Pasar también este valor al `OfferEditor` y al guardar en DB.
 
-Expand the `PdfDropZone` component to include a toggle/tab: "PDF" | "Pegar texto". When "Pegar texto" is selected, show a textarea where the user can paste offer details. On submit, call a new edge function (or extend `parse-offer-pdf`) that sends the text (instead of a PDF) to the same AI extraction pipeline. Map the response identically.
+#### 4. Cliente — `ClientComparison.tsx` y `SharedOperation.tsx`
 
-**Edge function change** (`parse-offer-pdf/index.ts`): Accept either `pdf_base64` or `text_content` in the request body. If `text_content` is provided, send it as a plain text message instead of a file attachment.
+Al construir cada `Offer` para el motor de cálculo, leer `offer.term_years ?? operation.term_years` y usar ese plazo individual. Mostrar el plazo en la tabla de comparación si difiere del global.
 
-#### 3. Add text-paste extraction option — Client side (`ExternalOfferForm.tsx`)
+#### 5. Motor de cálculo
 
-Add a similar "Pegar texto" option alongside the existing PDF dropzone in the client-facing form. Same edge function call, same response mapping.
+No necesita cambios — ya recibe `termYears` como parámetro por oferta vía `OperationDefaults`. Solo hay que pasar el valor correcto desde los componentes.
 
-#### 4. AI disclaimer + confirmation checkbox — Client side (`ExternalOfferForm.tsx`)
+### Archivos a modificar
 
-After PDF/text extraction succeeds, show:
-- A light-hearted message: *"🤖 ¡Ojo! Verifica que los datos extraídos son correctos. Como buena IA, a veces me invento cosas con mucha convicción."*
-- A green checkbox that the user must tick before "Añadir a la comparativa" becomes enabled.
+| Archivo | Cambio |
+|---|---|
+| Migración SQL | `ALTER TABLE offers ADD COLUMN term_years integer DEFAULT NULL` |
+| `src/components/admin/OfferEditor.tsx` | Nuevo campo plazo con placeholder del global |
+| `src/pages/admin/OperationEditor.tsx` | Usar plazo por oferta en cálculos y guardado |
+| `src/pages/ClientComparison.tsx` | Leer `term_years` de cada oferta |
+| `src/pages/SharedOperation.tsx` | Idem |
+| `src/components/OfferTable.tsx` | Mostrar plazo si difiere del global |
 
-#### 5. Update edge function prompt
+### Resultado
 
-In `parse-offer-pdf/index.ts`, update `SYSTEM_PROMPT` to:
-- Constrain linkage labels to exactly: "Domiciliación de nómina", "Seguro hogar", "Seguro de vida"
-- Handle text input mode (when no PDF is attached)
-
----
-
-### Files to modify
-
-| File | Change |
-|------|--------|
-| `supabase/functions/parse-offer-pdf/index.ts` | Accept `text_content` param; constrain linkage labels in prompt |
-| `src/components/admin/PdfDropZone.tsx` | Add text-paste tab; fuzzy-match linkage labels to presets |
-| `src/components/ExternalOfferForm.tsx` | Add text-paste option; add AI disclaimer + confirmation checkbox |
+- El gestor configura plazo global (ej: 30 años) como siempre
+- Puede sobrescribir el plazo en cualquier oferta individual (ej: una a 20 años, otra a 25)
+- Cuota, TAE y tabla de amortización se recalculan con el plazo específico
+- El cliente ve claramente qué plazo tiene cada oferta
 
