@@ -193,10 +193,7 @@ const OfferEditor = ({ offer, index, onChange, onDelete, loanAmount, termYears, 
                   <SelectContent>
                     {Object.keys(BANK_PRESETS).map((name) => (
                       <SelectItem key={name} value={name}>
-                        <span className="flex items-center gap-2">
-                          <span className="w-2 h-2 rounded-full inline-block" style={{ backgroundColor: BANK_PRESETS[name].color }} />
-                          {name}
-                        </span>
+                        <BankLogo bankName={name} logoColor={BANK_PRESETS[name].color} size="sm" />
                       </SelectItem>
                     ))}
                   </SelectContent>
