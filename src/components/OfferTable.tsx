@@ -125,7 +125,7 @@ const MonthlyWithInsurance = ({ co }: { co: ComputedOffer }) => {
 };
 
 /* ——— Desktop table ——— */
-const DesktopTable = ({ computedOffers, onToggleLinkage, recommendedId, onAdvance, onDeleteOffer }: OfferTableProps) => {
+const DesktopTable = ({ computedOffers, onToggleLinkage, recommendedId, onAdvance, onDeleteOffer, globalTermYears }: OfferTableProps) => {
   const sorted = [...computedOffers].sort((a, b) => a.totalCost - b.totalCost);
 
   return (
