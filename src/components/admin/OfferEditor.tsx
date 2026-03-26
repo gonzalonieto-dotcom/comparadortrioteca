@@ -39,6 +39,7 @@ export interface OfferFormData {
   sort_order: number;
   linkages: LinkageFormData[];
   mixedPeriods: MixedPeriodFormData[];
+  term_years_override: number | null;
 }
 
 interface Props {
