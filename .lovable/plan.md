@@ -1,88 +1,39 @@
 
 
-## Panel admin para configurar checklists por banco + logos en el front
+## Fix: ChecklistManager redirige antes de cargar el rol + logos en el front
 
-### Resumen
+### Bug identificado
 
-Dos cambios principales:
-
-1. **Nueva página admin** `/admin/checklists` donde el administrador configura los pasos del checklist por banco (CRUD dinámico, guardado en base de datos). Esto reemplaza el mapa hardcodeado en código.
-
-2. **Logos en la comparativa del cliente** — verificar y corregir que `BankLogo` se muestre correctamente en todas las vistas cliente.
-
----
-
-### 1. Base de datos: tabla `bank_checklist_items`
-
-Nueva migración:
-
-```sql
-CREATE TABLE public.bank_checklist_items (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  bank_name text NOT NULL,
-  label text NOT NULL,
-  sort_order integer NOT NULL DEFAULT 0,
-  is_gatekeeper boolean NOT NULL DEFAULT false,
-  link_url text,
-  link_label text,
-  notify_gestor_on_complete boolean NOT NULL DEFAULT false,
-  created_at timestamptz NOT NULL DEFAULT now()
-);
-
-ALTER TABLE public.bank_checklist_items ENABLE ROW LEVEL SECURITY;
-
--- Solo admins pueden gestionar
-CREATE POLICY "Admins manage checklists"
-  ON public.bank_checklist_items FOR ALL TO authenticated
-  USING (public.has_role(auth.uid(), 'admin'))
-  WITH CHECK (public.has_role(auth.uid(), 'admin'));
-
--- Lectura pública para que el front del cliente pueda leerlos
-CREATE POLICY "Public can read checklists"
-  ON public.bank_checklist_items FOR SELECT TO anon, authenticated
-  USING (true);
+En `ChecklistManager.tsx` línea 41-43:
+```ts
+useEffect(() => {
+  if (!authLoading && (!user || !isAdmin)) navigate("/admin/dashboard");
+}, [user, authLoading, isAdmin, navigate]);
 ```
 
-Se cargarán los datos actuales de CaixaBank y Abanca como seed inicial con el insert tool.
+El `useRole` hook tiene su propio `loading` state. Cuando `authLoading` termina pero el rol todavía se está cargando, `isAdmin` es `false` (valor inicial), y el efecto redirige inmediatamente al dashboard. Por eso nunca se ve la página de checklists.
 
-### 2. Nueva página admin: `/admin/checklists`
+### Solución
 
-- Desplegable para seleccionar banco (misma lista de `BANK_PRESETS`)
-- Al seleccionar un banco, muestra sus pasos en tarjetas ordenables
-- Cada paso tiene: label, URL opcional, label del link, checkbox "gatekeeper", checkbox "notificar gestor"
-- Botones para agregar paso, eliminar paso, reordenar
-- Botón "Guardar" que persiste en `bank_checklist_items`
-- Accesible solo para admins
+1. **`src/pages/admin/ChecklistManager.tsx`**: Usar `loading` de `useRole()` en la condición del `useEffect`, esperando a que termine de cargar el rol antes de decidir si redirigir:
 
-### 3. Ruta en App.tsx
+```ts
+const { isAdmin, loading: roleLoading } = useRole();
 
-Agregar: `<Route path="/admin/checklists" element={<ChecklistManager />} />`
+useEffect(() => {
+  if (!authLoading && !roleLoading && (!user || !isAdmin)) 
+    navigate("/admin/dashboard");
+}, [user, authLoading, roleLoading, isAdmin, navigate]);
 
-Agregar botón "Checklists" en el header de `Operations.tsx` (junto a "Usuarios"), visible solo para admins.
+if (authLoading || roleLoading) return <div>...</div>;
+```
 
-### 4. Modificar `bankChecklists.ts` y `AdvanceModal`
+2. **`src/components/OfferTable.tsx`**: Verificar y corregir que los logos se muestren en la comparativa del cliente (reemplazar nombre por logo).
 
-`getBankChecklist()` pasará a consultar la base de datos en vez del mapa hardcodeado. El `AdvanceModal` recibirá los items como prop o los cargará desde la DB.
-
-Enfoque: en `ClientComparison.tsx` y `SharedOperation.tsx`, al cargar la operación, también se hace un fetch de `bank_checklist_items` y se pasa al `AdvanceModal` como prop.
-
-### 5. Logos en el front del cliente
-
-Revisar `ClientComparison.tsx` para verificar que `BankLogo` se usa con logos visibles. Si el componente `OfferTable` ya usa `BankLogo`, el problema puede ser que el favicon service no carga en el contexto del cliente. Investigaré y corregiré.
-
----
-
-### Archivos
+### Archivos a modificar
 
 | Archivo | Cambio |
 |---|---|
-| Migración SQL | Crear tabla `bank_checklist_items` con RLS |
-| `src/pages/admin/ChecklistManager.tsx` | **Nuevo** — UI admin para gestionar checklists |
-| `src/App.tsx` | Agregar ruta `/admin/checklists` |
-| `src/pages/admin/Operations.tsx` | Botón "Checklists" en header para admins |
-| `src/lib/bankChecklists.ts` | Cambiar `getBankChecklist` para leer de DB |
-| `src/components/AdvanceModal.tsx` | Recibir checklist items como prop |
-| `src/pages/ClientComparison.tsx` | Cargar checklist items de DB, pasarlos al modal |
-| `src/pages/SharedOperation.tsx` | Idem |
-| `src/components/OfferTable.tsx` | Verificar/corregir logos en vista cliente |
+| `src/pages/admin/ChecklistManager.tsx` | Agregar `roleLoading` a la condición de redirect |
+| `src/components/OfferTable.tsx` | Verificar logos en vista cliente |
 
