@@ -7,6 +7,11 @@ export interface ChecklistItemConfig {
 }
 
 export const BANK_CHECKLISTS: Record<string, ChecklistItemConfig[]> = {
+  Abanca: [
+    { label: "Confirmar interés del cliente", isGatekeeper: true },
+    { label: "Apertura de cuenta", linkUrl: "https://www.abanca.com/es/cuentas/", linkLabel: "Abrir cuenta en Abanca" },
+    { label: "Documentación actualizada, completa y enviada al banco", notifyGestorOnComplete: true },
+  ],
   CaixaBank: [
     {
       label: "Confirmar interés",
