@@ -223,6 +223,7 @@ const OperationEditor = () => {
         euribor_rate: euriborRate, advantages: [], considerations: [],
         sort_order: prev.length,
         linkages: defaultLinkages, mixedPeriods: [],
+        term_years_override: null,
       }];
       setExpandedIndex(newOffers.length - 1);
       return newOffers;
