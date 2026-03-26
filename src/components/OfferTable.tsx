@@ -352,11 +352,11 @@ const MobileCards = ({ computedOffers, onToggleLinkage, recommendedId, onAdvance
   );
 };
 
-const OfferTable = ({ computedOffers, onToggleLinkage, recommendedId, onAdvance, onDeleteOffer }: OfferTableProps) => {
+const OfferTable = ({ computedOffers, onToggleLinkage, recommendedId, onAdvance, onDeleteOffer, globalTermYears }: OfferTableProps) => {
   const isMobile = useIsMobile();
   return isMobile
-    ? <MobileCards computedOffers={computedOffers} onToggleLinkage={onToggleLinkage} recommendedId={recommendedId} onAdvance={onAdvance} onDeleteOffer={onDeleteOffer} />
-    : <DesktopTable computedOffers={computedOffers} onToggleLinkage={onToggleLinkage} recommendedId={recommendedId} onAdvance={onAdvance} onDeleteOffer={onDeleteOffer} />;
+    ? <MobileCards computedOffers={computedOffers} onToggleLinkage={onToggleLinkage} recommendedId={recommendedId} onAdvance={onAdvance} onDeleteOffer={onDeleteOffer} globalTermYears={globalTermYears} />
+    : <DesktopTable computedOffers={computedOffers} onToggleLinkage={onToggleLinkage} recommendedId={recommendedId} onAdvance={onAdvance} onDeleteOffer={onDeleteOffer} globalTermYears={globalTermYears} />;
 };
 
 export default OfferTable;
