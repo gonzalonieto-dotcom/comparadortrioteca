@@ -14,6 +14,42 @@ export type Database = {
   }
   public: {
     Tables: {
+      bank_checklist_items: {
+        Row: {
+          bank_name: string
+          created_at: string
+          id: string
+          is_gatekeeper: boolean
+          label: string
+          link_label: string | null
+          link_url: string | null
+          notify_gestor_on_complete: boolean
+          sort_order: number
+        }
+        Insert: {
+          bank_name: string
+          created_at?: string
+          id?: string
+          is_gatekeeper?: boolean
+          label: string
+          link_label?: string | null
+          link_url?: string | null
+          notify_gestor_on_complete?: boolean
+          sort_order?: number
+        }
+        Update: {
+          bank_name?: string
+          created_at?: string
+          id?: string
+          is_gatekeeper?: boolean
+          label?: string
+          link_label?: string | null
+          link_url?: string | null
+          notify_gestor_on_complete?: boolean
+          sort_order?: number
+        }
+        Relationships: []
+      }
       offer_linkages: {
         Row: {
           annual_cost: number
