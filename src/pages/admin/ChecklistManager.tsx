@@ -65,7 +65,7 @@ const ChecklistManager = () => {
       .eq("bank_name", selectedBank)
       .order("sort_order")
       .then(({ data, error }) => {
-        if (error) { toast.error(error.message); return; }
+        if (error) { toast.error(error.message); setLoading(false); return; }
         setItems((data || []).map((d: any) => ({
           id: d.id,
           bank_name: d.bank_name,
@@ -76,8 +76,8 @@ const ChecklistManager = () => {
           link_label: d.link_label || "",
           notify_gestor_on_complete: d.notify_gestor_on_complete,
         })));
-      })
-      .finally(() => setLoading(false));
+        setLoading(false);
+      });
   }, [selectedBank]);
 
   const addItem = () => {
