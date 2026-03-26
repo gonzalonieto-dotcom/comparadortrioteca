@@ -34,6 +34,7 @@ export interface DbOffer {
   advantages: string[];
   considerations: string[];
   sort_order: number;
+  term_years: number | null;
 }
 
 export interface DbLinkage {
