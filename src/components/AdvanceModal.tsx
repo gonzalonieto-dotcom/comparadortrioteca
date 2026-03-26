@@ -28,7 +28,7 @@ const AdvanceModal = ({ open, onOpenChange, bankName, bankColor, isExternal }: A
     if (open) {
       setStatuses(new Array(checklist.length).fill(false));
     }
-  }, [open, bankName, checklist.length]);
+  }, [open, bankName]);
 
   // Find gatekeeper index (-1 if none)
   const gatekeeperIdx = checklist.findIndex((item) => item.isGatekeeper);
