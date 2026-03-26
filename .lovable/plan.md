@@ -1,75 +1,88 @@
 
-## Corregir checklist del modal y usar logos en la comparativa del front
 
-### Lo que está pasando
-La captura no coincide con el código actual que revisé:
-- En `src/lib/bankChecklists.ts` Abanca ya está definido con 3 pasos y “Confirmar interés” primero.
-- En `src/components/AdvanceModal.tsx` el modal renderiza los items en el orden recibido y bloquea los siguientes si el gatekeeper no está marcado.
+## Panel admin para configurar checklists por banco + logos en el front
 
-Pero la UI que muestras sigue enseñando:
-- pasos en otro orden
-- un paso de CaixaBank dentro de Abanca (“Firmar documento SUA”)
-- el diseño anterior del checklist
+### Resumen
 
-Eso indica que hay que **blindar la lógica del modal** para que siempre priorice el paso de interés y no arrastre estados/configuraciones de otro banco, además de revisar la vista cliente donde se muestran los bancos con texto en vez de logo.
+Dos cambios principales:
 
-### Propuesta de implementación
+1. **Nueva página admin** `/admin/checklists` donde el administrador configura los pasos del checklist por banco (CRUD dinámico, guardado en base de datos). Esto reemplaza el mapa hardcodeado en código.
 
-#### 1. Fortalecer el modal “Para avanzar con X banco”
-Archivo: `src/components/AdvanceModal.tsx`
+2. **Logos en la comparativa del cliente** — verificar y corregir que `BankLogo` se muestre correctamente en todas las vistas cliente.
 
-Haré estos ajustes:
-- Memorizar el checklist resuelto por `bankName`
-- Recalcular y resetear estados siempre al abrir modal o cambiar banco
-- Forzar por código que el item con `isGatekeeper` se muestre primero, aunque el array venga desordenado
-- Mantener bloqueados todos los pasos posteriores hasta marcar el interés como `OK`
-- Revisar que Abanca no herede pasos de CaixaBank
+---
 
-Esto evita exactamente el problema que se ve en tu captura.
+### 1. Base de datos: tabla `bank_checklist_items`
 
-#### 2. Dejar Abanca con su checklist exacto
-Archivo: `src/lib/bankChecklists.ts`
+Nueva migración:
 
-Abanca debe quedar solo con estos 3 pasos:
-1. Confirmar interés del cliente
-2. Apertura de cuenta
-3. Documentación actualizada, completa y enviada al banco
+```sql
+CREATE TABLE public.bank_checklist_items (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  bank_name text NOT NULL,
+  label text NOT NULL,
+  sort_order integer NOT NULL DEFAULT 0,
+  is_gatekeeper boolean NOT NULL DEFAULT false,
+  link_url text,
+  link_label text,
+  notify_gestor_on_complete boolean NOT NULL DEFAULT false,
+  created_at timestamptz NOT NULL DEFAULT now()
+);
 
-Y siempre con el primero como gatekeeper.
+ALTER TABLE public.bank_checklist_items ENABLE ROW LEVEL SECURITY;
 
-#### 3. Poner logos en la comparativa del front como en el back
-Archivo principal: `src/components/OfferTable.tsx`
+-- Solo admins pueden gestionar
+CREATE POLICY "Admins manage checklists"
+  ON public.bank_checklist_items FOR ALL TO authenticated
+  USING (public.has_role(auth.uid(), 'admin'))
+  WITH CHECK (public.has_role(auth.uid(), 'admin'));
 
-Ahora el front ya usa `BankLogo`, pero muestra **logo + nombre**.  
-La mejora sería:
-- en la columna “Banco” mostrar **solo el logo** o logo con fallback visual más limpio
-- mantener el nombre como `alt`, tooltip o texto accesible si hace falta
-- aplicar esto tanto en desktop como mobile dentro de la comparativa
+-- Lectura pública para que el front del cliente pueda leerlos
+CREATE POLICY "Public can read checklists"
+  ON public.bank_checklist_items FOR SELECT TO anon, authenticated
+  USING (true);
+```
 
-#### 4. Unificar también las tarjetas principales del front
-Archivos:
-- `src/components/client/EnhancedRecommendedCard.tsx`
-- `src/components/client/DecisionSummary.tsx`
+Se cargarán los datos actuales de CaixaBank y Abanca como seed inicial con el insert tool.
 
-Si quieres consistencia total con el estilo “más friendly”, también cambiaría estas vistas para priorizar el logo visual del banco, no solo el texto.
+### 2. Nueva página admin: `/admin/checklists`
 
-### Resultado esperado
-- En Abanca el modal mostrará únicamente sus 3 pasos correctos
-- “Confirmar interés” aparecerá primero siempre
-- Hasta marcar ese paso, el resto quedará bloqueado
-- La comparativa del front mostrará los bancos con logos igual que en el back, con una presentación más visual y limpia
+- Desplegable para seleccionar banco (misma lista de `BANK_PRESETS`)
+- Al seleccionar un banco, muestra sus pasos en tarjetas ordenables
+- Cada paso tiene: label, URL opcional, label del link, checkbox "gatekeeper", checkbox "notificar gestor"
+- Botones para agregar paso, eliminar paso, reordenar
+- Botón "Guardar" que persiste en `bank_checklist_items`
+- Accesible solo para admins
 
-### Archivos a tocar
-- `src/components/AdvanceModal.tsx`
-- `src/lib/bankChecklists.ts`
-- `src/components/OfferTable.tsx`
-- opcional para consistencia visual:
-  - `src/components/client/EnhancedRecommendedCard.tsx`
-  - `src/components/client/DecisionSummary.tsx`
+### 3. Ruta en App.tsx
 
-### Detalle técnico
-La parte crítica no es solo el contenido de Abanca, sino asegurar que el modal no dependa de un estado previo ni de un orden accidental del array. La solución más robusta es:
-- resolver checklist por banco
-- ordenar gatekeeper primero
-- reinicializar `statuses` con el checklist ya resuelto
-- usar `BankLogo` con `showName={false}` en las vistas cliente donde quieras logo puro
+Agregar: `<Route path="/admin/checklists" element={<ChecklistManager />} />`
+
+Agregar botón "Checklists" en el header de `Operations.tsx` (junto a "Usuarios"), visible solo para admins.
+
+### 4. Modificar `bankChecklists.ts` y `AdvanceModal`
+
+`getBankChecklist()` pasará a consultar la base de datos en vez del mapa hardcodeado. El `AdvanceModal` recibirá los items como prop o los cargará desde la DB.
+
+Enfoque: en `ClientComparison.tsx` y `SharedOperation.tsx`, al cargar la operación, también se hace un fetch de `bank_checklist_items` y se pasa al `AdvanceModal` como prop.
+
+### 5. Logos en el front del cliente
+
+Revisar `ClientComparison.tsx` para verificar que `BankLogo` se usa con logos visibles. Si el componente `OfferTable` ya usa `BankLogo`, el problema puede ser que el favicon service no carga en el contexto del cliente. Investigaré y corregiré.
+
+---
+
+### Archivos
+
+| Archivo | Cambio |
+|---|---|
+| Migración SQL | Crear tabla `bank_checklist_items` con RLS |
+| `src/pages/admin/ChecklistManager.tsx` | **Nuevo** — UI admin para gestionar checklists |
+| `src/App.tsx` | Agregar ruta `/admin/checklists` |
+| `src/pages/admin/Operations.tsx` | Botón "Checklists" en header para admins |
+| `src/lib/bankChecklists.ts` | Cambiar `getBankChecklist` para leer de DB |
+| `src/components/AdvanceModal.tsx` | Recibir checklist items como prop |
+| `src/pages/ClientComparison.tsx` | Cargar checklist items de DB, pasarlos al modal |
+| `src/pages/SharedOperation.tsx` | Idem |
+| `src/components/OfferTable.tsx` | Verificar/corregir logos en vista cliente |
+
