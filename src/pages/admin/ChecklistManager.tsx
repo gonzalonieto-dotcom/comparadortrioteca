@@ -39,8 +39,8 @@ const ChecklistManager = () => {
   const [banksWithItems, setBanksWithItems] = useState<string[]>([]);
 
   useEffect(() => {
-    if (!authLoading && (!user || !isAdmin)) navigate("/admin/dashboard");
-  }, [user, authLoading, isAdmin, navigate]);
+    if (!authLoading && !roleLoading && (!user || !isAdmin)) navigate("/admin/dashboard");
+  }, [user, authLoading, roleLoading, isAdmin, navigate]);
 
   // Load banks that have checklist items
   useEffect(() => {
