@@ -13,6 +13,12 @@ export const BANK_LOGOS: Record<string, string> = {
   ING: "https://www.ing.es/favicon.ico",
   Openbank: "https://www.openbank.es/favicon.ico",
   EVO: "https://www.evobanco.com/favicon.ico",
+  Abanca: "https://www.abanca.com/favicon.ico",
+  UCI: "https://www.uci.com/favicon.ico",
+  "Global Caja": "https://www.globalcaja.es/favicon.ico",
+  "Laboral Kutxa": "https://www.laboralkutxa.com/favicon.ico",
+  "Caixa Popular": "https://www.caixapopular.es/favicon.ico",
+  MyInvestor: "https://myinvestor.es/favicon.ico",
 };
 
 interface BankLogoProps {
