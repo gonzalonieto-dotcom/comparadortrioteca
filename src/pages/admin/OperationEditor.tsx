@@ -160,14 +160,15 @@ const OperationEditor = () => {
           monthlyAccountCostEUR: offer.monthly_account_cost, linkages, advantages: offer.advantages,
           considerations: offer.considerations, mixedPeriods, euriborRate: offer.euribor_rate ?? undefined,
         };
+        const offerTermYears = offer.term_years_override ?? op.term_years;
         const defaults: OperationDefaults = {
           purchasePrice: op.loan_amount, appraisalValue: op.loan_amount,
-          loanAmount: op.loan_amount, termYears: op.term_years,
+          loanAmount: op.loan_amount, termYears: offerTermYears,
           homeInsuranceAnnualDefault: 0, lifeInsuranceAnnualDefault: 0,
           appraisalCostEUR: op.appraisal_cost,
         };
         const bonifiedTIN = calcBonifiedTIN(calcOffer);
-        const termMonths = op.term_years * 12;
+        const termMonths = offerTermYears * 12;
         const schedule = generateAmortizationSchedule(op.loan_amount, bonifiedTIN, termMonths, calcOffer);
         const computedPayment = schedule[0]?.payment ?? calcMonthlyPayment(op.loan_amount, bonifiedTIN, termMonths);
         const computedTAE = calcEstimatedTAE(calcOffer, defaults, schedule);
