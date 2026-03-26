@@ -183,14 +183,19 @@ export interface ComputedOffer {
 }
 
 export function computeOffer(offer: Offer, defaults: OperationDefaults): ComputedOffer {
-  const termMonths = defaults.termYears * 12;
+  // Use per-offer term if set, otherwise global
+  const effectiveTermYears = offer.termYears ?? defaults.termYears;
+  const effectiveDefaults = effectiveTermYears !== defaults.termYears
+    ? { ...defaults, termYears: effectiveTermYears }
+    : defaults;
+  const termMonths = effectiveTermYears * 12;
   const bonifiedTIN = calcBonifiedTIN(offer);
-  const schedule = generateAmortizationSchedule(defaults.loanAmount, bonifiedTIN, termMonths, offer);
+  const schedule = generateAmortizationSchedule(effectiveDefaults.loanAmount, bonifiedTIN, termMonths, offer);
   const monthlyPayment = schedule[0]?.payment ?? 0;
   const totalInterest = calcTotalInterest(schedule);
-  const totalLinkageCost = calcTotalLinkageCost(offer, defaults.termYears);
-  const totalCost = calcTotalCost(offer, defaults, schedule);
-  const taeEstimated = calcEstimatedTAE(offer, defaults, schedule);
+  const totalLinkageCost = calcTotalLinkageCost(offer, effectiveTermYears);
+  const totalCost = calcTotalCost(offer, effectiveDefaults, schedule);
+  const taeEstimated = calcEstimatedTAE(offer, effectiveDefaults, schedule);
   const annualLinkageCost = calcAnnualLinkageCost(offer);
 
   let variableRate: number | undefined;
