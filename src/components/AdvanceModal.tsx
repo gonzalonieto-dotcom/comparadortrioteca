@@ -5,10 +5,9 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { CheckCircle2, Circle, ExternalLink, Lock } from "lucide-react";
-import { getBankChecklist, ChecklistItemConfig } from "@/lib/bankChecklists";
+import { fetchBankChecklist, ChecklistItemConfig } from "@/lib/bankChecklists";
 import { BankLogo } from "@/lib/bankLogos";
 import { toast } from "@/hooks/use-toast";
 
@@ -21,22 +20,24 @@ interface AdvanceModalProps {
 }
 
 const AdvanceModal = ({ open, onOpenChange, bankName, bankColor, isExternal }: AdvanceModalProps) => {
-  // Memoize checklist by bankName, sort gatekeeper first
-  const checklist = useMemo(() => {
-    const raw = getBankChecklist(bankName);
-    const gatekeeper = raw.filter((i) => i.isGatekeeper);
-    const rest = raw.filter((i) => !i.isGatekeeper);
-    return [...gatekeeper, ...rest];
-  }, [bankName]);
-
+  const [checklist, setChecklist] = useState<ChecklistItemConfig[]>([]);
   const [statuses, setStatuses] = useState<boolean[]>([]);
+  const [loadingChecklist, setLoadingChecklist] = useState(false);
 
-  // Reset statuses every time modal opens or bank changes
+  // Fetch checklist from DB when modal opens or bank changes
   useEffect(() => {
-    if (open) {
-      setStatuses(new Array(checklist.length).fill(false));
-    }
-  }, [open, bankName, checklist.length]);
+    if (!open || isExternal) return;
+    setLoadingChecklist(true);
+    fetchBankChecklist(bankName).then((items) => {
+      // Sort gatekeeper first
+      const gatekeeper = items.filter((i) => i.isGatekeeper);
+      const rest = items.filter((i) => !i.isGatekeeper);
+      const sorted = [...gatekeeper, ...rest];
+      setChecklist(sorted);
+      setStatuses(new Array(sorted.length).fill(false));
+      setLoadingChecklist(false);
+    });
+  }, [open, bankName, isExternal]);
 
   // Gatekeeper is always index 0 after sorting
   const hasGatekeeper = checklist.length > 0 && checklist[0].isGatekeeper;
@@ -44,7 +45,6 @@ const AdvanceModal = ({ open, onOpenChange, bankName, bankColor, isExternal }: A
 
   const handleToggle = (idx: number) => {
     const isGatekeeperItem = idx === 0 && hasGatekeeper;
-    // Block non-gatekeeper items if gatekeeper not done
     if (!isGatekeeperItem && hasGatekeeper && !statuses[0]) return;
 
     const newStatuses = [...statuses];
@@ -89,61 +89,65 @@ const AdvanceModal = ({ open, onOpenChange, bankName, bankColor, isExternal }: A
           </p>
         </DialogHeader>
 
-        <div className="space-y-1 mt-2">
-          {checklist.map((item, idx) => {
-            const done = statuses[idx];
-            const isGatekeeperItem = idx === 0 && hasGatekeeper;
-            const isLocked = !isGatekeeperItem && hasGatekeeper && !statuses[0];
+        {loadingChecklist ? (
+          <p className="text-sm text-muted-foreground py-4">Cargando pasos...</p>
+        ) : (
+          <div className="space-y-1 mt-2">
+            {checklist.map((item, idx) => {
+              const done = statuses[idx];
+              const isGatekeeperItem = idx === 0 && hasGatekeeper;
+              const isLocked = !isGatekeeperItem && hasGatekeeper && !statuses[0];
 
-            return (
-              <div
-                key={`${bankName}-${idx}`}
-                className={`flex items-start gap-3 rounded-lg px-3 py-3 transition-opacity ${
-                  isLocked ? "opacity-40 cursor-not-allowed" : ""
-                }`}
-              >
-                <button
-                  onClick={() => handleToggle(idx)}
-                  disabled={isLocked}
-                  className="mt-0.5 flex-shrink-0 disabled:cursor-not-allowed"
+              return (
+                <div
+                  key={`${bankName}-${idx}`}
+                  className={`flex items-start gap-3 rounded-lg px-3 py-3 transition-opacity ${
+                    isLocked ? "opacity-40 cursor-not-allowed" : ""
+                  }`}
                 >
-                  {isLocked ? (
-                    <Lock className="h-5 w-5 text-muted-foreground/40" />
-                  ) : done ? (
-                    <CheckCircle2 className="h-5 w-5 text-accent" />
-                  ) : (
-                    <Circle className="h-5 w-5 text-muted-foreground/40" />
-                  )}
-                </button>
+                  <button
+                    onClick={() => handleToggle(idx)}
+                    disabled={isLocked}
+                    className="mt-0.5 flex-shrink-0 disabled:cursor-not-allowed"
+                  >
+                    {isLocked ? (
+                      <Lock className="h-5 w-5 text-muted-foreground/40" />
+                    ) : done ? (
+                      <CheckCircle2 className="h-5 w-5 text-accent" />
+                    ) : (
+                      <Circle className="h-5 w-5 text-muted-foreground/40" />
+                    )}
+                  </button>
 
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <span className={`text-sm ${done ? "text-muted-foreground line-through" : "text-card-foreground"}`}>
-                      {item.label}
-                    </span>
-                    <Badge
-                      variant={done ? "default" : "outline"}
-                      className={`text-[10px] px-1.5 py-0 ${done ? "bg-accent text-accent-foreground" : ""}`}
-                    >
-                      {done ? "OK" : "Pendiente"}
-                    </Badge>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className={`text-sm ${done ? "text-muted-foreground line-through" : "text-card-foreground"}`}>
+                        {item.label}
+                      </span>
+                      <Badge
+                        variant={done ? "default" : "outline"}
+                        className={`text-[10px] px-1.5 py-0 ${done ? "bg-accent text-accent-foreground" : ""}`}
+                      >
+                        {done ? "OK" : "Pendiente"}
+                      </Badge>
+                    </div>
+
+                    {item.linkUrl && !isLocked && (
+                      <a
+                        href={item.linkUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1 text-xs text-primary hover:underline mt-1"
+                      >
+                        {item.linkLabel || "Ver enlace"} <ExternalLink className="h-3 w-3" />
+                      </a>
+                    )}
                   </div>
-
-                  {item.linkUrl && !isLocked && (
-                    <a
-                      href={item.linkUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1 text-xs text-primary hover:underline mt-1"
-                    >
-                      {item.linkLabel || "Ver enlace"} <ExternalLink className="h-3 w-3" />
-                    </a>
-                  )}
                 </div>
-              </div>
-            );
-          })}
-        </div>
+              );
+            })}
+          </div>
+        )}
 
         {hasGatekeeper && !gatekeeperDone && (
           <p className="text-xs text-muted-foreground text-center mt-2 italic">
