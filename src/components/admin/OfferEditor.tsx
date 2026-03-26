@@ -14,12 +14,23 @@ import PdfDropZone from "./PdfDropZone";
 import MixedPeriodEditor, { type MixedPeriodFormData } from "./MixedPeriodEditor";
 import type { Offer, OperationDefaults, Linkage, MixedRatePeriod } from "@/data/mortgageData";
 import { calcMonthlyPayment, calcEstimatedTAE, generateAmortizationSchedule, calcBonifiedTIN } from "@/lib/mortgageCalc";
+import { BankLogo } from "@/lib/bankLogos";
+
 export const BANK_PRESETS: Record<string, { color: string }> = {
   CaixaBank: { color: "hsl(200, 70%, 40%)" },
   Ibercaja: { color: "hsl(340, 75%, 45%)" },
   BBVA: { color: "hsl(210, 80%, 45%)" },
   Kutxabank: { color: "hsl(145, 60%, 40%)" },
   Bankinter: { color: "hsl(25, 90%, 50%)" },
+  Abanca: { color: "hsl(195, 85%, 35%)" },
+  Santander: { color: "hsl(0, 80%, 45%)" },
+  UCI: { color: "hsl(210, 65%, 50%)" },
+  Unicaja: { color: "hsl(150, 55%, 40%)" },
+  "Global Caja": { color: "hsl(35, 80%, 45%)" },
+  Sabadell: { color: "hsl(210, 70%, 40%)" },
+  "Laboral Kutxa": { color: "hsl(15, 75%, 45%)" },
+  "Caixa Popular": { color: "hsl(120, 50%, 35%)" },
+  MyInvestor: { color: "hsl(170, 60%, 40%)" },
 };
 
 export interface OfferFormData {
@@ -153,7 +164,11 @@ const OfferEditor = ({ offer, index, onChange, onDelete, loanAmount, termYears, 
         <CardHeader className="cursor-pointer" onClick={toggleExpanded}>
           <div className="flex items-center justify-between">
             <CardTitle className="text-base flex items-center gap-2">
-              <span className="font-medium text-card-foreground">{offer.bank_name || `Oferta ${index + 1}`}</span>
+              {offer.bank_name ? (
+                <BankLogo bankName={offer.bank_name} logoColor={offer.logo_color} size="md" />
+              ) : (
+                <span className="font-medium text-card-foreground">{`Oferta ${index + 1}`}</span>
+              )}
               <span className="text-xs text-muted-foreground font-normal">({offer.type})</span>
             </CardTitle>
             <div className="flex items-center gap-2">
@@ -178,10 +193,7 @@ const OfferEditor = ({ offer, index, onChange, onDelete, loanAmount, termYears, 
                   <SelectContent>
                     {Object.keys(BANK_PRESETS).map((name) => (
                       <SelectItem key={name} value={name}>
-                        <span className="flex items-center gap-2">
-                          <span className="w-2 h-2 rounded-full inline-block" style={{ backgroundColor: BANK_PRESETS[name].color }} />
-                          {name}
-                        </span>
+                        <BankLogo bankName={name} logoColor={BANK_PRESETS[name].color} size="sm" />
                       </SelectItem>
                     ))}
                   </SelectContent>
