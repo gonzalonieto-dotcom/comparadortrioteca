@@ -123,7 +123,7 @@ const OfferEditor = ({ offer, index, onChange, onDelete, loanAmount, termYears, 
   // ─── Auto-computed TAE & payment ───
   const { computedTAE, computedPayment } = useMemo(() => {
     const loan = loanAmount || 200000;
-    const years = termYears || 30;
+    const years = offer.term_years_override ?? termYears ?? 30;
     const termMonths = years * 12;
     const appraisal = appraisalCost || 0;
 
