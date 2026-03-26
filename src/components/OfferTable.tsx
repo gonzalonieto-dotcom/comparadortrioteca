@@ -32,6 +32,7 @@ interface OfferTableProps {
   recommendedId?: string;
   onAdvance?: (offerId: string) => void;
   onDeleteOffer?: (offerId: string) => void;
+  globalTermYears?: number;
 }
 
 const fmt = (n: number) =>
