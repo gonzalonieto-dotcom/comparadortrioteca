@@ -1,46 +1,45 @@
 
 
-## Agregar bancos y mostrar logos en lugar de nombres
+## Checklist personalizado por banco en el modal "Avanzar"
 
-### Bancos a agregar
+### Situación actual
+El `AdvanceModal` tiene un checklist genérico hardcodeado para todos los bancos. Se necesita uno específico por banco, empezando por CaixaBank.
 
-Abanca, Santander, UCI, Unicaja, Global Caja, Sabadell, Laboral Kutxa, Caixa Popular, MyInvestor.
+### Checklist CaixaBank (según tu descripción)
 
-Nota: Santander, Sabadell y Unicaja ya tienen logo en `BANK_LOGOS` pero no están en `BANK_PRESETS` (el desplegable del gestor). Se agregarán al desplegable.
+| # | Paso | Comportamiento |
+|---|---|---|
+| 1 | Confirmar interés | Botón "OK" / "Pendiente". Al dar OK se desbloquean los pasos 2-4 |
+| 2 | Apertura de cuenta | Link a la web de CaixaBank. Toggle OK/Pendiente |
+| 3 | Firmar documento SUA | Toggle OK/Pendiente (firmado / pendiente de firma) |
+| 4 | Documentación completa | Toggle OK/Pendiente. Al dar OK se simula notificación al gestor (toast de confirmación) |
 
-### Logos
+### Diseño técnico
 
-Usaré URLs directas de los logos oficiales de cada banco (favicon o logo público). Para los que ya existen en `BANK_LOGOS` se mantienen. Para los nuevos:
+#### 1. `src/lib/bankChecklists.ts` — Nuevo archivo con checklists por banco
 
-| Banco | URL logo |
-|---|---|
-| Abanca | `https://www.abanca.com/favicon.ico` |
-| UCI | `https://www.uci.com/favicon.ico` |
-| Global Caja | `https://www.globalcaja.es/favicon.ico` |
-| Laboral Kutxa | `https://www.laboralkutxa.com/favicon.ico` |
-| Caixa Popular | `https://www.caixapopular.es/favicon.ico` |
-| MyInvestor | `https://myinvestor.es/favicon.ico` |
+Mapa `BANK_CHECKLISTS` donde la key es el nombre del banco (ej: "CaixaBank") y el value es un array de items con:
+- `label`, `linkUrl?`, `linkLabel?`
+- `isGatekeeper?: boolean` (si es true, bloquea los siguientes hasta completarse — para "Confirmar interés")
+- `notifyGestorOnComplete?: boolean` (para el paso de documentación)
 
-### Cambios
+Si un banco no tiene checklist específico, se usa uno genérico por defecto.
 
-#### 1. `src/lib/bankLogos.tsx` — Agregar logos de los nuevos bancos
+#### 2. `src/components/AdvanceModal.tsx` — Refactor completo
 
-Añadir Abanca, UCI, Global Caja, Laboral Kutxa, Caixa Popular, MyInvestor al mapa `BANK_LOGOS`.
+- Importar `BANK_CHECKLISTS` y resolver el checklist según `bankName`
+- Paso 1 (Confirmar interés) actúa como "gatekeeper": hasta que no se marque OK, los demás pasos aparecen deshabilitados (opacidad reducida, no clicables)
+- Cada item tiene estado OK/Pendiente con un badge visual
+- Al completar el paso de documentación, mostrar toast "Notificación enviada al gestor" (simulación)
+- Mantener el caso `isExternal` sin cambios
 
-#### 2. `src/components/admin/OfferEditor.tsx` — Ampliar `BANK_PRESETS` + usar `BankLogo` en el selector
-
-- Agregar los 9 bancos nuevos a `BANK_PRESETS` con sus colores corporativos
-- Reemplazar el dot de color + texto en el `<SelectItem>` por el componente `<BankLogo>` para que se vea el logo real
-- Hacer lo mismo en el header de la tarjeta colapsada (línea 156): mostrar `<BankLogo>` en lugar de texto plano
-
-#### 3. Componentes cliente (ya resuelto)
-
-`OfferTable.tsx`, `EnhancedRecommendedCard.tsx` y `DecisionSummary.tsx` ya usan `<BankLogo>` que muestra logo + nombre. Con agregar los logos al mapa, automáticamente se mostrarán en la comparativa del cliente.
-
-### Archivos a modificar
+### Archivos
 
 | Archivo | Cambio |
 |---|---|
-| `src/lib/bankLogos.tsx` | Agregar 6 nuevos logos al mapa |
-| `src/components/admin/OfferEditor.tsx` | Agregar 9 bancos a `BANK_PRESETS`, usar `BankLogo` en selector y header |
+| `src/lib/bankChecklists.ts` | **Nuevo** — mapa de checklists por banco |
+| `src/components/AdvanceModal.tsx` | Refactor para usar checklists dinámicos con lógica de gatekeeper y notificación |
+
+### Nota
+Me indicaste que irás listando los checklists banco por banco. CaixaBank queda implementado ahora; los demás se irán agregando al mapa cuando los definas.
 
