@@ -52,6 +52,7 @@ function mapEdgeFunctionResponse(
     upfrontCostsEUR: o.upfront_costs,
     monthlyAccountCostEUR: o.monthly_account_cost,
     euriborRate: o.euribor_rate ?? undefined,
+    termYears: o.term_years ?? undefined,
     advantages: o.advantages || [],
     considerations: o.considerations || [],
     linkages: linkages
@@ -243,6 +244,7 @@ const ClientComparison = () => {
               recommendedId={recommended?.offer.id}
               onAdvance={handleAdvance}
               onDeleteOffer={handleDeleteOffer}
+              globalTermYears={defaults.termYears}
             />
             <div className="mt-5">
               <ExternalOfferForm

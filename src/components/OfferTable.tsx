@@ -32,6 +32,7 @@ interface OfferTableProps {
   recommendedId?: string;
   onAdvance?: (offerId: string) => void;
   onDeleteOffer?: (offerId: string) => void;
+  globalTermYears?: number;
 }
 
 const fmt = (n: number) =>
@@ -124,7 +125,7 @@ const MonthlyWithInsurance = ({ co }: { co: ComputedOffer }) => {
 };
 
 /* ——— Desktop table ——— */
-const DesktopTable = ({ computedOffers, onToggleLinkage, recommendedId, onAdvance, onDeleteOffer }: OfferTableProps) => {
+const DesktopTable = ({ computedOffers, onToggleLinkage, recommendedId, onAdvance, onDeleteOffer, globalTermYears }: OfferTableProps) => {
   const sorted = [...computedOffers].sort((a, b) => a.totalCost - b.totalCost);
 
   return (
@@ -172,6 +173,9 @@ const DesktopTable = ({ computedOffers, onToggleLinkage, recommendedId, onAdvanc
                   </td>
                   <td className="px-5 py-4">
                     <Badge variant="secondary" className="text-xs">{o.type}</Badge>
+                    {o.termYears && globalTermYears && o.termYears !== globalTermYears && (
+                      <Badge variant="outline" className="text-[10px] ml-1">{o.termYears} años</Badge>
+                    )}
                   </td>
                   <td className="px-5 py-4 text-right">
                     <span className="text-lg font-bold text-card-foreground">{co.bonifiedTIN.toFixed(2)} %</span>
@@ -230,7 +234,7 @@ const DesktopTable = ({ computedOffers, onToggleLinkage, recommendedId, onAdvanc
 };
 
 /* ——— Mobile cards (show ALL data by default) ——— */
-const MobileCards = ({ computedOffers, onToggleLinkage, recommendedId, onAdvance, onDeleteOffer }: OfferTableProps) => {
+const MobileCards = ({ computedOffers, onToggleLinkage, recommendedId, onAdvance, onDeleteOffer, globalTermYears }: OfferTableProps) => {
   const sorted = [...computedOffers].sort((a, b) => a.totalCost - b.totalCost);
 
   return (
@@ -253,6 +257,9 @@ const MobileCards = ({ computedOffers, onToggleLinkage, recommendedId, onAdvance
                   {o.id === recommendedId && <Star className="h-3.5 w-3.5 text-primary fill-primary" />}
                 </div>
                 <Badge variant="secondary" className="text-xs">{o.type}</Badge>
+                {o.termYears && globalTermYears && o.termYears !== globalTermYears && (
+                  <Badge variant="outline" className="text-[10px] ml-1">{o.termYears} años</Badge>
+                )}
               </div>
               <div className="mt-1.5">
                 <OfferBadgesInline co={co} allOffers={computedOffers} recommendedId={recommendedId} />
@@ -345,11 +352,11 @@ const MobileCards = ({ computedOffers, onToggleLinkage, recommendedId, onAdvance
   );
 };
 
-const OfferTable = ({ computedOffers, onToggleLinkage, recommendedId, onAdvance, onDeleteOffer }: OfferTableProps) => {
+const OfferTable = ({ computedOffers, onToggleLinkage, recommendedId, onAdvance, onDeleteOffer, globalTermYears }: OfferTableProps) => {
   const isMobile = useIsMobile();
   return isMobile
-    ? <MobileCards computedOffers={computedOffers} onToggleLinkage={onToggleLinkage} recommendedId={recommendedId} onAdvance={onAdvance} onDeleteOffer={onDeleteOffer} />
-    : <DesktopTable computedOffers={computedOffers} onToggleLinkage={onToggleLinkage} recommendedId={recommendedId} onAdvance={onAdvance} onDeleteOffer={onDeleteOffer} />;
+    ? <MobileCards computedOffers={computedOffers} onToggleLinkage={onToggleLinkage} recommendedId={recommendedId} onAdvance={onAdvance} onDeleteOffer={onDeleteOffer} globalTermYears={globalTermYears} />
+    : <DesktopTable computedOffers={computedOffers} onToggleLinkage={onToggleLinkage} recommendedId={recommendedId} onAdvance={onAdvance} onDeleteOffer={onDeleteOffer} globalTermYears={globalTermYears} />;
 };
 
 export default OfferTable;

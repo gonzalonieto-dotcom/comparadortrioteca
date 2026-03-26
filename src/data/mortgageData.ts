@@ -54,6 +54,8 @@ export interface Offer {
   mixedPeriods?: MixedRatePeriod[];
   // Current Euribor for mixed/variable calcs
   euriborRate?: number;
+  // Per-offer term override (null = use global)
+  termYears?: number;
 }
 
 // ─── Default offers ───

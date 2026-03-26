@@ -67,6 +67,7 @@ const SharedOperation = () => {
           upfrontCostsEUR: o.upfront_costs,
           monthlyAccountCostEUR: o.monthly_account_cost,
           euriborRate: o.euribor_rate ?? undefined,
+          termYears: o.term_years ?? undefined,
           advantages: o.advantages || [],
           considerations: o.considerations || [],
           linkages: linkages
@@ -196,6 +197,7 @@ const SharedOperation = () => {
               recommendedId={recommended?.offer.id}
               onAdvance={handleAdvance}
               onDeleteOffer={handleDeleteOffer}
+              globalTermYears={defaults.termYears}
             />
           </section>
 

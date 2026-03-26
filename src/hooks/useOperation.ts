@@ -34,6 +34,7 @@ export interface DbOffer {
   advantages: string[];
   considerations: string[];
   sort_order: number;
+  term_years: number | null;
 }
 
 export interface DbLinkage {
@@ -110,6 +111,7 @@ function mapToAppTypes(
     upfrontCostsEUR: o.upfront_costs,
     monthlyAccountCostEUR: o.monthly_account_cost,
     euriborRate: o.euribor_rate ?? undefined,
+    termYears: o.term_years ?? undefined,
     advantages: o.advantages || [],
     considerations: o.considerations || [],
     linkages: linkages

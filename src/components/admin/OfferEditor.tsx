@@ -39,6 +39,7 @@ export interface OfferFormData {
   sort_order: number;
   linkages: LinkageFormData[];
   mixedPeriods: MixedPeriodFormData[];
+  term_years_override: number | null;
 }
 
 interface Props {
@@ -122,7 +123,7 @@ const OfferEditor = ({ offer, index, onChange, onDelete, loanAmount, termYears, 
   // ─── Auto-computed TAE & payment ───
   const { computedTAE, computedPayment } = useMemo(() => {
     const loan = loanAmount || 200000;
-    const years = termYears || 30;
+    const years = offer.term_years_override ?? termYears ?? 30;
     const termMonths = years * 12;
     const appraisal = appraisalCost || 0;
 
@@ -200,12 +201,23 @@ const OfferEditor = ({ offer, index, onChange, onDelete, loanAmount, termYears, 
             </div>
 
             {/* Financial details */}
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
               <div>
                 <Label className="text-xs">
                   {offer.type === "Mixto" ? "TIN bonificado primer tramo %" : "TIN bonificado %"}
                 </Label>
                 <Input type="number" step="0.01" value={offer.base_tin} onFocus={(e) => e.target.select()} onChange={(e) => update({ base_tin: +e.target.value })} />
+              </div>
+              <div>
+                <Label className="text-xs">Plazo (años)</Label>
+                <Input
+                  type="number"
+                  step="1"
+                  value={offer.term_years_override ?? ""}
+                  onFocus={(e) => e.target.select()}
+                  onChange={(e) => update({ term_years_override: e.target.value ? +e.target.value : null })}
+                  placeholder={`${termYears || 30} — global`}
+                />
               </div>
               <div>
                 <Label className="text-xs flex items-center gap-1">
