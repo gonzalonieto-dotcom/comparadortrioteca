@@ -1,28 +1,35 @@
 
 
-## Agregar checklist de Abanca
+## Corrección del checklist de Abanca y lógica del gatekeeper
 
-Misma lógica que CaixaBank: "Confirmar interés" como gatekeeper, y el último paso notifica al gestor.
+### Bugs identificados
 
-### Checklist Abanca
+1. **Checklist no se resetea al cambiar de banco si tienen la misma cantidad de ítems**: El `useEffect` que resetea `statuses` depende de `checklist.length`. Abanca y el DEFAULT ambos tienen 3 ítems, así que al cambiar entre ellos el efecto no se re-ejecuta y queda con el estado anterior (posiblemente todo desbloqueado).
 
-| # | Paso | Comportamiento |
-|---|---|---|
-| 1 | Confirmar interés del cliente | Gatekeeper — desbloquea los siguientes |
-| 2 | Apertura de cuenta | Link a `https://www.abanca.com/es/cuentas/` |
-| 3 | Documentación actualizada, completa y enviada al banco | Notifica al gestor al completar |
+2. **`checklist` se recalcula en cada render**: Como `getBankChecklist()` devuelve un array nuevo cada vez, no se puede usar como dependencia estable del efecto. Hay que memoizarlo o usar `bankName` directamente como dependencia.
 
-### Cambio
+### Solución
 
-**`src/lib/bankChecklists.ts`** — Agregar entrada `Abanca` al mapa `BANK_CHECKLISTS`:
+#### `src/components/AdvanceModal.tsx`
+
+- Cambiar la dependencia del `useEffect` de `checklist.length` a `bankName` directamente, para que siempre se reseteen los estados al abrir el modal o cambiar de banco:
 
 ```ts
-Abanca: [
-  { label: "Confirmar interés del cliente", isGatekeeper: true },
-  { label: "Apertura de cuenta", linkUrl: "https://www.abanca.com/es/cuentas/", linkLabel: "Abrir cuenta en Abanca" },
-  { label: "Documentación actualizada, completa y enviada al banco", notifyGestorOnComplete: true },
-],
+useEffect(() => {
+  if (open) {
+    setStatuses(new Array(checklist.length).fill(false));
+  }
+}, [open, bankName]); // ← bankName en vez de checklist.length
 ```
 
-Un solo archivo modificado. El modal ya resuelve el checklist dinámicamente por nombre de banco.
+Esto garantiza que:
+- Abanca muestra sus 3 pasos específicos (no los de CaixaBank)
+- Al abrir el modal, todos los pasos arrancan en "Pendiente"
+- El gatekeeper ("Confirmar interés") bloquea los pasos siguientes hasta marcarse OK
+
+### Archivos a modificar
+
+| Archivo | Cambio |
+|---|---|
+| `src/components/AdvanceModal.tsx` | Corregir dependencia del `useEffect` para usar `bankName` |
 
