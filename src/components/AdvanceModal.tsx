@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import {
   Dialog,
   DialogContent,
@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { CheckCircle2, Circle, ExternalLink, Lock } from "lucide-react";
 import { getBankChecklist, ChecklistItemConfig } from "@/lib/bankChecklists";
+import { BankLogo } from "@/lib/bankLogos";
 import { toast } from "@/hooks/use-toast";
 
 interface AdvanceModalProps {
@@ -20,31 +21,37 @@ interface AdvanceModalProps {
 }
 
 const AdvanceModal = ({ open, onOpenChange, bankName, bankColor, isExternal }: AdvanceModalProps) => {
-  const checklist = getBankChecklist(bankName);
+  // Memoize checklist by bankName, sort gatekeeper first
+  const checklist = useMemo(() => {
+    const raw = getBankChecklist(bankName);
+    const gatekeeper = raw.filter((i) => i.isGatekeeper);
+    const rest = raw.filter((i) => !i.isGatekeeper);
+    return [...gatekeeper, ...rest];
+  }, [bankName]);
+
   const [statuses, setStatuses] = useState<boolean[]>([]);
 
-  // Reset statuses when modal opens or bank changes
+  // Reset statuses every time modal opens or bank changes
   useEffect(() => {
     if (open) {
       setStatuses(new Array(checklist.length).fill(false));
     }
-  }, [open, bankName]);
+  }, [open, bankName, checklist.length]);
 
-  // Find gatekeeper index (-1 if none)
-  const gatekeeperIdx = checklist.findIndex((item) => item.isGatekeeper);
-  const gatekeeperDone = gatekeeperIdx === -1 || statuses[gatekeeperIdx];
+  // Gatekeeper is always index 0 after sorting
+  const hasGatekeeper = checklist.length > 0 && checklist[0].isGatekeeper;
+  const gatekeeperDone = !hasGatekeeper || statuses[0];
 
   const handleToggle = (idx: number) => {
-    const item = checklist[idx];
-
-    // If locked, do nothing
-    if (gatekeeperIdx !== -1 && idx !== gatekeeperIdx && !statuses[gatekeeperIdx]) return;
+    const isGatekeeperItem = idx === 0 && hasGatekeeper;
+    // Block non-gatekeeper items if gatekeeper not done
+    if (!isGatekeeperItem && hasGatekeeper && !statuses[0]) return;
 
     const newStatuses = [...statuses];
     newStatuses[idx] = !newStatuses[idx];
     setStatuses(newStatuses);
 
-    // Notify gestor simulation
+    const item = checklist[idx];
     if (newStatuses[idx] && item.notifyGestorOnComplete) {
       toast({
         title: "Notificación enviada",
@@ -59,8 +66,7 @@ const AdvanceModal = ({ open, onOpenChange, bankName, bankColor, isExternal }: A
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              {bankColor && <div className="w-3 h-3 rounded-full" style={{ backgroundColor: bankColor }} />}
-              Avanzar con {bankName || "este banco"}
+              <BankLogo bankName={bankName || "Oferta externa"} logoColor={bankColor} size="md" />
             </DialogTitle>
           </DialogHeader>
           <p className="text-sm text-muted-foreground py-4">
@@ -75,24 +81,23 @@ const AdvanceModal = ({ open, onOpenChange, bankName, bankColor, isExternal }: A
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md max-h-[85vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            {bankColor && <div className="w-3 h-3 rounded-full" style={{ backgroundColor: bankColor }} />}
-            Para avanzar con {bankName || "este banco"}
+          <DialogTitle className="flex items-center gap-3">
+            <BankLogo bankName={bankName || "este banco"} logoColor={bankColor} size="lg" showName={true} />
           </DialogTitle>
+          <p className="text-sm text-muted-foreground mt-1">
+            Completa estos pasos para avanzar
+          </p>
         </DialogHeader>
-
-        <p className="text-sm text-muted-foreground">
-          Completa estos pasos para que podamos elevar tu operación al departamento de riesgos.
-        </p>
 
         <div className="space-y-1 mt-2">
           {checklist.map((item, idx) => {
             const done = statuses[idx];
-            const isLocked = gatekeeperIdx !== -1 && idx !== gatekeeperIdx && !statuses[gatekeeperIdx];
+            const isGatekeeperItem = idx === 0 && hasGatekeeper;
+            const isLocked = !isGatekeeperItem && hasGatekeeper && !statuses[0];
 
             return (
               <div
-                key={idx}
+                key={`${bankName}-${idx}`}
                 className={`flex items-start gap-3 rounded-lg px-3 py-3 transition-opacity ${
                   isLocked ? "opacity-40 cursor-not-allowed" : ""
                 }`}
@@ -140,7 +145,7 @@ const AdvanceModal = ({ open, onOpenChange, bankName, bankColor, isExternal }: A
           })}
         </div>
 
-        {gatekeeperIdx !== -1 && !gatekeeperDone && (
+        {hasGatekeeper && !gatekeeperDone && (
           <p className="text-xs text-muted-foreground text-center mt-2 italic">
             Confirma tu interés para desbloquear los siguientes pasos.
           </p>
