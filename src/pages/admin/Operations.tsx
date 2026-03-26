@@ -103,9 +103,14 @@ const Operations = () => {
           <img src={triotecaLogo} alt="Trioteca" className="h-8" />
           <div className="flex items-center gap-3">
             {isAdmin && (
-              <Button variant="outline" size="sm" onClick={() => navigate("/admin/users")}>
-                <Users className="h-4 w-4 mr-1" />Usuarios
-              </Button>
+              <>
+                <Button variant="outline" size="sm" onClick={() => navigate("/admin/checklists")}>
+                  <ClipboardList className="h-4 w-4 mr-1" />Checklists
+                </Button>
+                <Button variant="outline" size="sm" onClick={() => navigate("/admin/users")}>
+                  <Users className="h-4 w-4 mr-1" />Usuarios
+                </Button>
+              </>
             )}
             <span className="text-xs text-muted-foreground hidden sm:block">{user?.email}</span>
             <Button variant="ghost" size="sm" onClick={() => { signOut(); navigate("/admin/login"); }}>
