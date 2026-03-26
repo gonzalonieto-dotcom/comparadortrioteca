@@ -1,0 +1,1 @@
+ALTER TABLE public.offers ADD COLUMN term_years integer DEFAULT NULL;

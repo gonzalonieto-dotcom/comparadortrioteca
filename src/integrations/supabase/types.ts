@@ -100,6 +100,7 @@ export type Database = {
           monthly_payment: number
           operation_id: string
           sort_order: number
+          term_years: number | null
           type: string
           upfront_costs: number
         }
@@ -118,6 +119,7 @@ export type Database = {
           monthly_payment?: number
           operation_id: string
           sort_order?: number
+          term_years?: number | null
           type?: string
           upfront_costs?: number
         }
@@ -136,6 +138,7 @@ export type Database = {
           monthly_payment?: number
           operation_id?: string
           sort_order?: number
+          term_years?: number | null
           type?: string
           upfront_costs?: number
         }
