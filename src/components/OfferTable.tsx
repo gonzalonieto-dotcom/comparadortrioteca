@@ -257,6 +257,9 @@ const MobileCards = ({ computedOffers, onToggleLinkage, recommendedId, onAdvance
                   {o.id === recommendedId && <Star className="h-3.5 w-3.5 text-primary fill-primary" />}
                 </div>
                 <Badge variant="secondary" className="text-xs">{o.type}</Badge>
+                {o.termYears && globalTermYears && o.termYears !== globalTermYears && (
+                  <Badge variant="outline" className="text-[10px] ml-1">{o.termYears} años</Badge>
+                )}
               </div>
               <div className="mt-1.5">
                 <OfferBadgesInline co={co} allOffers={computedOffers} recommendedId={recommendedId} />
