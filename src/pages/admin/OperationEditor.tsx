@@ -113,6 +113,7 @@ const OperationEditor = () => {
         considerations: o.considerations || [],
         sort_order: o.sort_order,
         linkages: offerLinkages,
+        term_years_override: (o as any).term_years ?? null,
         mixedPeriods: mixedPeriods.filter((m) => m.offer_id === o.id).map((m) => ({
           from_year: m.from_year,
           to_year: m.to_year,
