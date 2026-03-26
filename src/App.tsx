@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate, useParams } from "react-router-dom";
 import Login from "./pages/Login";
 import Operations from "./pages/admin/Operations";
+import ChecklistManager from "./pages/admin/ChecklistManager";
 import OperationEditor from "./pages/admin/OperationEditor";
 import UserManagement from "./pages/admin/UserManagement";
 import ClientComparison from "./pages/ClientComparison";
