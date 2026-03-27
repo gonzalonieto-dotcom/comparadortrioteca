@@ -12,7 +12,7 @@ import { toast } from "sonner";
 import { Plus, Pencil, Trash2, Copy, LogOut, Eye, EyeOff, Users, ClipboardList } from "lucide-react";
 import triotecaLogo from "@/assets/trioteca-logo-vert.png";
 
-const PUBLIC_BASE_URL = "https://trioteca-offer-clarity.lovable.app";
+const PUBLIC_BASE_URL = "https://comparadortrioteca.lovable.app";
 
 const Operations = () => {
   const { user, signOut, loading: authLoading } = useAuth();
