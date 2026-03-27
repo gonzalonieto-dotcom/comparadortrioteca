@@ -1,16 +1,25 @@
 
 
-## API para carga automática de operaciones desde sistema externo
+## Documentación API — Importación de Operaciones
+
+No se requieren cambios de código. A continuación la documentación completa de la API ya implementada.
+
+---
 
 ### Endpoint
 
-Edge Function: `POST /functions/v1/import-operation`
+```
+POST https://cnlpnazvbyjnaecpsbsq.supabase.co/functions/v1/import-operation
+```
 
-### Autenticación
+### Headers requeridos
 
-Header `x-api-key` con un secreto compartido (`IMPORT_API_KEY`). Se configurará como secret en el proyecto. Sin JWT, sin login.
+| Header | Valor |
+|---|---|
+| `Content-Type` | `application/json` |
+| `x-api-key` | Tu clave secreta (la que configuraste como `IMPORT_API_KEY`) |
 
-### Payload esperado
+### Payload (JSON Body)
 
 ```json
 {
@@ -37,8 +46,18 @@ Header `x-api-key` con un secreto compartido (`IMPORT_API_KEY`). Se configurará
       "advantages": ["Sin comisión de apertura"],
       "considerations": [],
       "linkages": [
-        { "label": "Nómina", "is_active_default": true, "discount_weight_pct": 0.2, "annual_cost": 0 },
-        { "label": "Seguro hogar", "is_active_default": true, "discount_weight_pct": 0.1, "annual_cost": 220 }
+        {
+          "label": "Nómina",
+          "is_active_default": true,
+          "discount_weight_pct": 0.2,
+          "annual_cost": 0
+        },
+        {
+          "label": "Seguro hogar",
+          "is_active_default": true,
+          "discount_weight_pct": 0.1,
+          "annual_cost": 220
+        }
       ],
       "mixed_periods": []
     }
@@ -46,44 +65,120 @@ Header `x-api-key` con un secreto compartido (`IMPORT_API_KEY`). Se configurará
 }
 ```
 
-### Respuesta
+### Campos del payload
+
+| Campo | Tipo | Obligatorio | Descripción |
+|---|---|---|---|
+| `gestor_email` | string | **Sí** | Email del gestor registrado en la plataforma. La operación se asigna a este usuario. |
+| `client_name` | string | No | Nombre del cliente |
+| `purchase_price` | number | No | Precio de compra de la vivienda |
+| `loan_amount` | number | No | Importe del préstamo |
+| `term_years` | number | No | Plazo en años (default: 30) |
+| `appraisal_value` | number | No | Valor de tasación |
+| `home_insurance_annual` | number | No | Coste anual seguro hogar |
+| `life_insurance_annual` | number | No | Coste anual seguro vida |
+| `appraisal_cost` | number | No | Coste de tasación |
+| `is_published` | boolean | No | Si la comparativa es visible para el cliente (default: false) |
+| `offers` | array | No | Array de ofertas bancarias (ver detalle abajo) |
+
+**Cada oferta:**
+
+| Campo | Tipo | Descripción |
+|---|---|---|
+| `bank_name` | string | Nombre del banco |
+| `type` | string | "Fijo", "Variable" o "Mixto" |
+| `base_tin` | number | TIN base (ej: 2.85) |
+| `amortization_fee_pct` | number | Comisión amortización anticipada (%) |
+| `upfront_costs` | number | Costes iniciales |
+| `monthly_account_cost` | number | Coste mensual de cuenta |
+| `euribor_rate` | number/null | Euríbor (para variables/mixtos) |
+| `term_years` | number/null | Plazo específico de la oferta (null = usa el de la operación) |
+| `advantages` | string[] | Ventajas de la oferta |
+| `considerations` | string[] | Consideraciones |
+| `linkages` | array | Vinculaciones (nómina, seguros, etc.) |
+| `mixed_periods` | array | Tramos para hipotecas mixtas |
+
+**Cada linkage:**
+
+| Campo | Tipo | Descripción |
+|---|---|---|
+| `label` | string | Nombre (ej: "Nómina") |
+| `is_active_default` | boolean | Activa por defecto |
+| `discount_weight_pct` | number | Peso de bonificación (ej: 0.2 = 0.2%) |
+| `annual_cost` | number | Coste anual para el cliente |
+
+**Cada mixed_period:**
+
+| Campo | Tipo | Descripción |
+|---|---|---|
+| `from_year` | number | Año inicio del tramo |
+| `to_year` | number | Año fin del tramo |
+| `fixed_tin` | number/null | TIN fijo del tramo |
+| `spread_over_euribor` | number/null | Diferencial sobre euríbor |
+
+### Respuesta exitosa (200)
 
 ```json
 {
   "success": true,
-  "operation_id": "uuid",
+  "operation_id": "uuid-de-la-operacion",
   "share_token": "abc123hex",
-  "share_url": "https://trioteca-offer-clarity.lovable.app/c/abc123hex",
-  "offers_created": 2
+  "share_url": "https://comparadortrioteca.lovable.app/c/abc123hex",
+  "offers_created": 1
 }
 ```
 
-### Lógica de la Edge Function
+- `share_url` es el link público que se puede enviar al cliente directamente.
 
-1. Validar `x-api-key` contra el secret `IMPORT_API_KEY`
-2. Buscar el `user_id` del gestor por email usando service role (`auth.admin.listUsers`)
-3. Insertar en `operations` con `created_by = user_id`
-4. Para cada oferta: insertar en `offers`, luego sus `offer_linkages` y `offer_mixed_periods`
-5. Calcular `monthly_payment` y `estimated_tae` usando la misma lógica del editor (se duplica el cálculo en la función para no depender del front)
-6. Devolver `operation_id`, `share_token` y URL
+### Errores
 
-### URL de invocación
-
-```
-POST https://cnlpnazvbyjnaecpsbsq.supabase.co/functions/v1/import-operation
-Headers:
-  x-api-key: <tu_api_key>
-  Content-Type: application/json
-```
-
-### Archivos
-
-| Archivo | Cambio |
+| Código | Causa |
 |---|---|
-| `supabase/functions/import-operation/index.ts` | **Nuevo** — Edge Function completa |
-| Secret `IMPORT_API_KEY` | Se te pedirá que definas el valor |
+| 401 | API key inválida o ausente |
+| 400 | Falta `gestor_email` |
+| 404 | Gestor no encontrado con ese email |
+| 500 | Error interno (detalle en `error`) |
 
-### Nota sobre cálculos
+### Ejemplo cURL
 
-La función calculará `monthly_payment` y `estimated_tae` con fórmulas simplificadas (cuota francesa estándar). Si preferís que esos campos se calculen después en el editor del gestor, la función puede dejarlos en 0 y el gestor los recalcula al guardar.
+```bash
+curl -X POST \
+  https://cnlpnazvbyjnaecpsbsq.supabase.co/functions/v1/import-operation \
+  -H "Content-Type: application/json" \
+  -H "x-api-key: TU_API_KEY_AQUI" \
+  -d '{
+    "gestor_email": "gestor@trioteca.com",
+    "client_name": "María López",
+    "purchase_price": 300000,
+    "loan_amount": 240000,
+    "term_years": 25,
+    "appraisal_value": 310000,
+    "is_published": false,
+    "offers": [
+      {
+        "bank_name": "Sabadell",
+        "type": "Fijo",
+        "base_tin": 2.65,
+        "linkages": [
+          { "label": "Nómina", "is_active_default": true, "discount_weight_pct": 0.15, "annual_cost": 0 }
+        ],
+        "mixed_periods": []
+      }
+    ]
+  }'
+```
+
+### Flujo recomendado desde el CRM
+
+1. El CRM envía el POST con los datos de la operación y ofertas
+2. La API devuelve el `share_url`
+3. El CRM guarda el `operation_id` y `share_url` en su registro
+4. El gestor puede editar la operación desde el back del comparador
+5. Cuando publica (`is_published: true` o lo hace manualmente), el cliente puede ver la comparativa en el `share_url`
+
+### Notas
+
+- La cuota mensual (`monthly_payment`) y TAE estimada se calculan automáticamente en el servidor
+- El gestor debe estar previamente dado de alta en la plataforma con el email indicado
+- Si se envía `is_published: false`, el gestor deberá publicar manualmente para que el cliente vea la comparativa
 
