@@ -194,7 +194,7 @@ Deno.serve(async (req) => {
       }
     }
 
-    const shareUrl = `https://trioteca-offer-clarity.lovable.app/c/${op.share_token}`;
+    const shareUrl = `https://comparadortrioteca.lovable.app/c/${op.share_token}`;
 
     return new Response(
       JSON.stringify({
