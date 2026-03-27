@@ -1,39 +1,89 @@
 
 
-## Fix: ChecklistManager redirige antes de cargar el rol + logos en el front
+## API para carga automática de operaciones desde sistema externo
 
-### Bug identificado
+### Endpoint
 
-En `ChecklistManager.tsx` línea 41-43:
-```ts
-useEffect(() => {
-  if (!authLoading && (!user || !isAdmin)) navigate("/admin/dashboard");
-}, [user, authLoading, isAdmin, navigate]);
+Edge Function: `POST /functions/v1/import-operation`
+
+### Autenticación
+
+Header `x-api-key` con un secreto compartido (`IMPORT_API_KEY`). Se configurará como secret en el proyecto. Sin JWT, sin login.
+
+### Payload esperado
+
+```json
+{
+  "gestor_email": "gestor@ejemplo.com",
+  "client_name": "Juan García",
+  "purchase_price": 250000,
+  "loan_amount": 200000,
+  "term_years": 30,
+  "appraisal_value": 260000,
+  "home_insurance_annual": 220,
+  "life_insurance_annual": 180,
+  "appraisal_cost": 400,
+  "is_published": false,
+  "offers": [
+    {
+      "bank_name": "CaixaBank",
+      "type": "Fijo",
+      "base_tin": 2.85,
+      "amortization_fee_pct": 0,
+      "upfront_costs": 0,
+      "monthly_account_cost": 0,
+      "euribor_rate": null,
+      "term_years": null,
+      "advantages": ["Sin comisión de apertura"],
+      "considerations": [],
+      "linkages": [
+        { "label": "Nómina", "is_active_default": true, "discount_weight_pct": 0.2, "annual_cost": 0 },
+        { "label": "Seguro hogar", "is_active_default": true, "discount_weight_pct": 0.1, "annual_cost": 220 }
+      ],
+      "mixed_periods": []
+    }
+  ]
+}
 ```
 
-El `useRole` hook tiene su propio `loading` state. Cuando `authLoading` termina pero el rol todavía se está cargando, `isAdmin` es `false` (valor inicial), y el efecto redirige inmediatamente al dashboard. Por eso nunca se ve la página de checklists.
+### Respuesta
 
-### Solución
-
-1. **`src/pages/admin/ChecklistManager.tsx`**: Usar `loading` de `useRole()` en la condición del `useEffect`, esperando a que termine de cargar el rol antes de decidir si redirigir:
-
-```ts
-const { isAdmin, loading: roleLoading } = useRole();
-
-useEffect(() => {
-  if (!authLoading && !roleLoading && (!user || !isAdmin)) 
-    navigate("/admin/dashboard");
-}, [user, authLoading, roleLoading, isAdmin, navigate]);
-
-if (authLoading || roleLoading) return <div>...</div>;
+```json
+{
+  "success": true,
+  "operation_id": "uuid",
+  "share_token": "abc123hex",
+  "share_url": "https://trioteca-offer-clarity.lovable.app/c/abc123hex",
+  "offers_created": 2
+}
 ```
 
-2. **`src/components/OfferTable.tsx`**: Verificar y corregir que los logos se muestren en la comparativa del cliente (reemplazar nombre por logo).
+### Lógica de la Edge Function
 
-### Archivos a modificar
+1. Validar `x-api-key` contra el secret `IMPORT_API_KEY`
+2. Buscar el `user_id` del gestor por email usando service role (`auth.admin.listUsers`)
+3. Insertar en `operations` con `created_by = user_id`
+4. Para cada oferta: insertar en `offers`, luego sus `offer_linkages` y `offer_mixed_periods`
+5. Calcular `monthly_payment` y `estimated_tae` usando la misma lógica del editor (se duplica el cálculo en la función para no depender del front)
+6. Devolver `operation_id`, `share_token` y URL
+
+### URL de invocación
+
+```
+POST https://cnlpnazvbyjnaecpsbsq.supabase.co/functions/v1/import-operation
+Headers:
+  x-api-key: <tu_api_key>
+  Content-Type: application/json
+```
+
+### Archivos
 
 | Archivo | Cambio |
 |---|---|
-| `src/pages/admin/ChecklistManager.tsx` | Agregar `roleLoading` a la condición de redirect |
-| `src/components/OfferTable.tsx` | Verificar logos en vista cliente |
+| `supabase/functions/import-operation/index.ts` | **Nuevo** — Edge Function completa |
+| Secret `IMPORT_API_KEY` | Se te pedirá que definas el valor |
+
+### Nota sobre cálculos
+
+La función calculará `monthly_payment` y `estimated_tae` con fórmulas simplificadas (cuota francesa estándar). Si preferís que esos campos se calculen después en el editor del gestor, la función puede dejarlos en 0 y el gestor los recalcula al guardar.
 
