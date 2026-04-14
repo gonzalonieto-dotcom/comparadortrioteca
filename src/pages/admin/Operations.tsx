@@ -153,12 +153,15 @@ const Operations = () => {
                      <TableHead>Precio vivienda</TableHead>
                     <TableHead>Plazo</TableHead>
                     <TableHead>Estado</TableHead>
+                    <TableHead>Interés</TableHead>
                     <TableHead>Creada</TableHead>
                     <TableHead className="text-right">Acciones</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {operations.map((op) => (
+                  {operations.map((op) => {
+                    const opInterests = interests.filter((i) => i.operation_id === op.id);
+                    return (
                     <TableRow key={op.id}>
                       <TableCell className="font-medium">{op.client_name || <span className="text-muted-foreground italic">Sin nombre</span>}</TableCell>
                       <TableCell>{fmt(op.loan_amount)}</TableCell>
@@ -168,6 +171,19 @@ const Operations = () => {
                         <Badge variant={op.is_published ? "default" : "secondary"}>
                           {op.is_published ? "Publicada" : "Borrador"}
                         </Badge>
+                      </TableCell>
+                      <TableCell>
+                        {opInterests.length > 0 ? (
+                          <div className="flex flex-wrap gap-1">
+                            {opInterests.map((i) => (
+                              <Badge key={i.bank_name} className="bg-green-100 text-green-800 border-green-300 text-[10px]">
+                                🟢 {i.bank_name}
+                              </Badge>
+                            ))}
+                          </div>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">—</span>
+                        )}
                       </TableCell>
                       <TableCell>{new Date(op.created_at).toLocaleDateString("es-ES")}</TableCell>
                       <TableCell className="text-right space-x-1">
