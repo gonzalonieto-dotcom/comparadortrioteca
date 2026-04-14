@@ -21,7 +21,7 @@ interface AdvanceModalProps {
   clientName?: string;
 }
 
-const AdvanceModal = ({ open, onOpenChange, bankName, bankColor, isExternal }: AdvanceModalProps) => {
+const AdvanceModal = ({ open, onOpenChange, bankName, bankColor, isExternal, operationId, clientName }: AdvanceModalProps) => {
   const [checklist, setChecklist] = useState<ChecklistItemConfig[]>([]);
   const [statuses, setStatuses] = useState<boolean[]>([]);
   const [loadingChecklist, setLoadingChecklist] = useState(false);
@@ -54,6 +54,18 @@ const AdvanceModal = ({ open, onOpenChange, bankName, bankColor, isExternal }: A
     setStatuses(newStatuses);
 
     const item = checklist[idx];
+
+    // When gatekeeper is confirmed, notify the gestor via edge function
+    if (isGatekeeperItem && newStatuses[idx] && operationId && bankName) {
+      const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
+      const url = `https://${projectId}.supabase.co/functions/v1/notify-gestor-interest`;
+      fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ operationId, bankName, clientName }),
+      }).catch((err) => console.warn("Failed to notify gestor:", err));
+    }
+
     if (newStatuses[idx] && item.notifyGestorOnComplete) {
       toast({
         title: "Notificación enviada",
