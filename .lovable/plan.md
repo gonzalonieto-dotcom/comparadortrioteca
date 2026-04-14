@@ -1,42 +1,44 @@
 
 
-## Plan: Notificación al gestor cuando el cliente confirma interés
+## Plan: Notificación in-app al gestor cuando el cliente confirma interés
 
-### Situación actual
-Cuando el cliente pulsa "Confirmar interés" (gatekeeper) en el modal de avance, solo se muestra un toast local. No se envía ninguna notificación real al gestor. Además, el proyecto no tiene infraestructura de email configurada (no hay dominio de envío).
-
-### Enfoque propuesto
-
-Crear una edge function `notify-gestor-interest` que se invoque desde el cliente cuando marca el gatekeeper. La función:
-1. Recibe `operationId` + `bankName` + `clientName`
-2. Busca el `created_by` de la operación para obtener el email del gestor
-3. Envía un email de notificación al gestor
-
-### Requisito previo: configurar dominio de email
-Para poder enviar emails desde la aplicación, necesitas configurar un dominio de envío (ej: `notify@tudominio.com`). Es un paso que se hace una sola vez desde la configuración del proyecto.
+### Enfoque
+En lugar de enviar un email, guardar en la base de datos qué banco le interesó al cliente. El gestor verá un tag/badge directamente en su listado de operaciones indicando "Cliente interesado en X banco".
 
 ### Cambios técnicos
 
-**1. Configurar infraestructura de email**
-- Configurar dominio de email (requiere tu intervención para agregar registros DNS)
-- Crear la infraestructura de envío y la plantilla de notificación
+**1. Nueva tabla `client_interests` (migración SQL)**
+```sql
+CREATE TABLE public.client_interests (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  operation_id uuid NOT NULL,
+  bank_name text NOT NULL,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  UNIQUE(operation_id, bank_name)
+);
+ALTER TABLE public.client_interests ENABLE ROW LEVEL SECURITY;
 
-**2. Nueva edge function: `notify-gestor-interest`**
-- Recibe `{ operationId, bankName, clientName }` (sin autenticación, ya que la llama el cliente público)
-- Valida el input con Zod
-- Consulta `operations` para obtener `created_by` y `client_name`
-- Consulta `auth.users` (con service role) para obtener el email del gestor
-- Envía email con asunto: "🔔 {clientName} ha confirmado interés en {bankName}"
-- Incluye protección de idempotencia para evitar envíos duplicados
+-- Anon puede insertar (el cliente público)
+CREATE POLICY "Anon can insert interests"
+  ON public.client_interests FOR INSERT TO anon
+  WITH CHECK (true);
 
-**3. Modificar `AdvanceModal.tsx`**
-- Recibir `operationId` y `clientName` como props adicionales
-- Cuando se marca el gatekeeper, invocar la edge function
-- Mantener el toast actual como feedback inmediato
+-- Gestores autenticados leen los de sus operaciones
+CREATE POLICY "Gestors read own interests"
+  ON public.client_interests FOR SELECT TO authenticated
+  USING (operation_id IN (
+    SELECT id FROM operations WHERE created_by = auth.uid()
+  ));
+```
 
-**4. Modificar `ClientComparison.tsx`**
-- Pasar `operationId` y `clientName` (disponibles desde la respuesta de `get-comparison`) al `AdvanceModal`
+**2. Modificar `AdvanceModal.tsx`**
+- Reemplazar la llamada a la edge function `notify-gestor-interest` por un INSERT directo a `client_interests` usando el cliente Supabase (con la clave anon, ya que la política permite inserts anónimos).
+- Eliminar la referencia a la edge function.
 
-**5. Actualizar `get-comparison` edge function**
-- Incluir `created_by` y `client_name` en la respuesta (ya los devuelve como parte de `operation`)
+**3. Modificar `src/pages/admin/Operations.tsx`**
+- Al cargar operaciones, consultar también `client_interests` para las operaciones del gestor.
+- Mostrar un `<Badge>` adicional en la fila de cada operación: "🟢 Interesado en {bankName}" por cada registro encontrado.
+
+**4. Limpiar edge function**
+- Eliminar `supabase/functions/notify-gestor-interest/index.ts` (ya no se necesita).
 
