@@ -1,23 +1,42 @@
 
 
-## Plan: Campos mixtos en oferta externa + corrección tooltip del gráfico
+## Plan: Notificación al gestor cuando el cliente confirma interés
 
-### 1. Campos de periodos mixtos en ExternalOfferForm
+### Situación actual
+Cuando el cliente pulsa "Confirmar interés" (gatekeeper) en el modal de avance, solo se muestra un toast local. No se envía ninguna notificación real al gestor. Además, el proyecto no tiene infraestructura de email configurada (no hay dominio de envío).
 
-**Archivo: `src/components/ExternalOfferForm.tsx`**
+### Enfoque propuesto
 
-Cuando el usuario selecciona tipo "Mixto", mostrar campos adicionales:
-- **TIN fijo primer tramo %** (ya cubierto por el campo TIN base existente, solo cambiar la etiqueta)
-- **Años periodo fijo** (ej: 10)
-- **Diferencial sobre Euríbor %** (para el periodo variable)
+Crear una edge function `notify-gestor-interest` que se invoque desde el cliente cuando marca el gatekeeper. La función:
+1. Recibe `operationId` + `bankName` + `clientName`
+2. Busca el `created_by` de la operación para obtener el email del gestor
+3. Envía un email de notificación al gestor
 
-Al hacer submit, construir el array `mixedPeriods` en el objeto `Offer` con los dos tramos correspondientes. Esto permite que los cálculos de coste por tramo funcionen correctamente para ofertas externas mixtas.
+### Requisito previo: configurar dominio de email
+Para poder enviar emails desde la aplicación, necesitas configurar un dominio de envío (ej: `notify@tudominio.com`). Es un paso que se hace una sola vez desde la configuración del proyecto.
 
-### 2. Corrección del tooltip en el gráfico de barras
+### Cambios técnicos
 
-**Archivo: `src/components/InterestBarChart.tsx`**
+**1. Configurar infraestructura de email**
+- Configurar dominio de email (requiere tu intervención para agregar registros DNS)
+- Crear la infraestructura de envío y la plantilla de notificación
 
-Línea 50: el formatter compara `name === "interest"` pero los nombres de las barras son `"Intereses"` y `"Bonificaciones"` (definidos en las props `name` de `<Bar>`). Corregir la condición para que use los nombres correctos:
-- `name === "Intereses"` → mostrar "Intereses totales"
-- `name === "Bonificaciones"` → mostrar "Coste de bonificaciones"
+**2. Nueva edge function: `notify-gestor-interest`**
+- Recibe `{ operationId, bankName, clientName }` (sin autenticación, ya que la llama el cliente público)
+- Valida el input con Zod
+- Consulta `operations` para obtener `created_by` y `client_name`
+- Consulta `auth.users` (con service role) para obtener el email del gestor
+- Envía email con asunto: "🔔 {clientName} ha confirmado interés en {bankName}"
+- Incluye protección de idempotencia para evitar envíos duplicados
+
+**3. Modificar `AdvanceModal.tsx`**
+- Recibir `operationId` y `clientName` como props adicionales
+- Cuando se marca el gatekeeper, invocar la edge function
+- Mantener el toast actual como feedback inmediato
+
+**4. Modificar `ClientComparison.tsx`**
+- Pasar `operationId` y `clientName` (disponibles desde la respuesta de `get-comparison`) al `AdvanceModal`
+
+**5. Actualizar `get-comparison` edge function**
+- Incluir `created_by` y `client_name` en la respuesta (ya los devuelve como parte de `operation`)
 
