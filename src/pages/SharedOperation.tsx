@@ -31,6 +31,7 @@ const SharedOperation = () => {
   const [offers, setOffers] = useState<Offer[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [inflationRate, setInflationRate] = useState<number>(3.0);
   const [advanceOpen, setAdvanceOpen] = useState(false);
   const [advanceOfferId, setAdvanceOfferId] = useState<string | null>(null);
   const [amortOpen, setAmortOpen] = useState(false);
@@ -55,6 +56,7 @@ const SharedOperation = () => {
           lifeInsuranceAnnualDefault: op.life_insurance_annual,
           appraisalCostEUR: op.appraisal_cost,
         });
+        setInflationRate(op.inflation_rate ?? 3.0);
         const linkages = data.linkages || [];
         const mixedPeriods = data.mixedPeriods || [];
         setOffers((data.offers || []).map((o: any) => ({
@@ -108,8 +110,8 @@ const SharedOperation = () => {
   const handleAdvance = useCallback((offerId: string) => { setAdvanceOfferId(offerId); setAdvanceOpen(true); }, []);
 
   const computedOffers: ComputedOffer[] = useMemo(
-    () => defaults ? offers.map((o) => computeOffer(o, defaults)) : [],
-    [offers, defaults]
+    () => defaults ? offers.map((o) => computeOffer(o, defaults, inflationRate)) : [],
+    [offers, defaults, inflationRate]
   );
 
   const sortedByCost = useMemo(() => [...computedOffers].sort((a, b) => a.totalCost - b.totalCost), [computedOffers]);
@@ -209,7 +211,7 @@ const SharedOperation = () => {
               <h2 className="text-lg font-semibold text-foreground">Coste total aproximado</h2>
               <p className="text-sm text-muted-foreground">Lo que pagarás en total durante los {defaults.termYears} años.</p>
             </div>
-            <CostBreakdown computedOffers={computedOffers} />
+            <CostBreakdown computedOffers={computedOffers} inflationRate={inflationRate} />
             <div className="mt-4">
               <InterestBarChart computedOffers={computedOffers} recommendedId={recommended?.offer.id} defaults={defaults} partialPayments={partialPayments} onPartialPaymentsChange={setPartialPayments} />
             </div>

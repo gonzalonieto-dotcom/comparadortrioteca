@@ -284,6 +284,11 @@ const MobileCards = ({ computedOffers, onToggleLinkage, recommendedId, onAdvance
                 {co.variableRate !== undefined && (
                   <p className="text-[10px] text-muted-foreground">Luego {co.variableRate.toFixed(2)}%</p>
                 )}
+                {co.periodBreakdown.length > 0 && (
+                  <p className="text-[10px] text-primary/70">
+                    Variable año {co.periodBreakdown.find(p => p.isVariable)?.fromYear ?? "—"}
+                  </p>
+                )}
               </div>
               <div className="px-3 py-3 text-center">
                 <p className="text-[10px] text-muted-foreground uppercase tracking-wider">TAE</p>

@@ -72,6 +72,7 @@ Deno.serve(async (req) => {
       life_insurance_annual = 0,
       appraisal_cost = 0,
       is_published = false,
+      inflation_rate = 3.0,
       offers = [],
     } = body;
 
@@ -116,6 +117,7 @@ Deno.serve(async (req) => {
         life_insurance_annual,
         appraisal_cost,
         is_published,
+        inflation_rate,
       })
       .select()
       .single();
