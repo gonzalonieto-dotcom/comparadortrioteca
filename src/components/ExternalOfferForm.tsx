@@ -176,6 +176,8 @@ const ExternalOfferForm = ({ onAddOffer, existingExternalOffer, onDeleteOffer }:
     setBankName("");
     setBaseTIN("");
     setAmortFeePct("0");
+    setFixedPeriodYears("10");
+    setSpreadOverEuribor("0.90");
     setLinkages([]);
     setPdfFileName(null);
     setTextContent("");
@@ -351,7 +353,9 @@ const ExternalOfferForm = ({ onAddOffer, existingExternalOffer, onDeleteOffer }:
           </Select>
         </div>
         <div>
-          <Label className="text-xs text-muted-foreground">TIN base (%)</Label>
+          <Label className="text-xs text-muted-foreground">
+            {type === "Mixto" ? "TIN fijo primer tramo (%)" : "TIN base (%)"}
+          </Label>
           <Input
             type="number"
             step="0.01"
