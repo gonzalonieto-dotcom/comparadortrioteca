@@ -31,6 +31,8 @@ const ExternalOfferForm = ({ onAddOffer, existingExternalOffer, onDeleteOffer }:
   const [type, setType] = useState<"Fijo" | "Mixto" | "Variable">("Fijo");
   const [baseTIN, setBaseTIN] = useState("");
   const [amortFeePct, setAmortFeePct] = useState("0");
+  const [fixedPeriodYears, setFixedPeriodYears] = useState("10");
+  const [spreadOverEuribor, setSpreadOverEuribor] = useState("0.90");
   const [linkages, setLinkages] = useState<{ label: string; weight: string; cost: string }[]>([]);
   const [pdfParsing, setPdfParsing] = useState(false);
   const [pdfFileName, setPdfFileName] = useState<string | null>(null);
@@ -161,12 +163,21 @@ const ExternalOfferForm = ({ onAddOffer, existingExternalOffer, onDeleteOffer }:
       advantages: [],
       considerations: [],
       isExternal: true,
+      ...(type === "Mixto" ? {
+        mixedPeriods: [
+          { fromYear: 1, toYear: parseInt(fixedPeriodYears) || 10, fixedTIN: parseFloat(baseTIN) || 0 },
+          { fromYear: (parseInt(fixedPeriodYears) || 10) + 1, toYear: 30, spreadOverEuribor: parseFloat(spreadOverEuribor) || 0.90 },
+        ],
+        euriborRate: 2.45,
+      } : {}),
     };
 
     onAddOffer(offer);
     setBankName("");
     setBaseTIN("");
     setAmortFeePct("0");
+    setFixedPeriodYears("10");
+    setSpreadOverEuribor("0.90");
     setLinkages([]);
     setPdfFileName(null);
     setTextContent("");
@@ -342,7 +353,9 @@ const ExternalOfferForm = ({ onAddOffer, existingExternalOffer, onDeleteOffer }:
           </Select>
         </div>
         <div>
-          <Label className="text-xs text-muted-foreground">TIN base (%)</Label>
+          <Label className="text-xs text-muted-foreground">
+            {type === "Mixto" ? "TIN fijo primer tramo (%)" : "TIN base (%)"}
+          </Label>
           <Input
             type="number"
             step="0.01"
@@ -363,6 +376,32 @@ const ExternalOfferForm = ({ onAddOffer, existingExternalOffer, onDeleteOffer }:
             className="mt-1"
           />
         </div>
+        {type === "Mixto" && (
+          <>
+            <div>
+              <Label className="text-xs text-muted-foreground">Años periodo fijo</Label>
+              <Input
+                type="number"
+                step="1"
+                placeholder="Ej: 10"
+                value={fixedPeriodYears}
+                onChange={(e) => setFixedPeriodYears(e.target.value)}
+                className="mt-1"
+              />
+            </div>
+            <div>
+              <Label className="text-xs text-muted-foreground">Diferencial sobre Euríbor (%)</Label>
+              <Input
+                type="number"
+                step="0.01"
+                placeholder="Ej: 0.90"
+                value={spreadOverEuribor}
+                onChange={(e) => setSpreadOverEuribor(e.target.value)}
+                className="mt-1"
+              />
+            </div>
+          </>
+        )}
       </div>
 
       <div className="mb-5">

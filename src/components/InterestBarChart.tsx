@@ -47,7 +47,7 @@ const StackedBarTab = ({ computedOffers, recommendedId }: { computedOffers: Comp
             <XAxis type="number" tickFormatter={(v) => `${(v / 1000).toFixed(0)}k €`} tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} axisLine={false} tickLine={false} />
             <YAxis type="category" dataKey="name" tick={{ fontSize: 12, fill: "hsl(var(--card-foreground))", fontWeight: 500 }} axisLine={false} tickLine={false} width={80} />
             <RTooltip
-              formatter={(value: number, name: string) => [fmt(value), name === "interest" ? "Intereses totales" : "Bonificaciones"]}
+              formatter={(value: number, name: string) => [fmt(value), name === "Intereses" ? "Intereses totales" : "Coste de bonificaciones"]}
               labelFormatter={(l) => data.find((d) => d.name === l)?.fullName ?? l}
               contentStyle={{ backgroundColor: "hsl(var(--popover))", border: "1px solid hsl(var(--border))", borderRadius: "0.5rem", fontSize: "0.8rem" }}
             />
