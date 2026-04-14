@@ -106,6 +106,8 @@ const ClientComparison = () => {
   const [advanceOfferId, setAdvanceOfferId] = useState<string | null>(null);
   const [amortOpen, setAmortOpen] = useState(false);
   const [partialPayments, setPartialPayments] = useState<PartialPayment[]>([]);
+  const [operationId, setOperationId] = useState<string | null>(null);
+  const [clientName, setClientName] = useState<string | null>(null);
   const whyRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -128,6 +130,8 @@ const ClientComparison = () => {
         const { defaults: d, offers: o } = mapEdgeFunctionResponse(data.operation, data.offers, data.linkages, data.mixedPeriods);
         setDefaults(d);
         setOffers(o);
+        setOperationId(data.operation.id);
+        setClientName(data.operation.client_name || null);
       })
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false));
