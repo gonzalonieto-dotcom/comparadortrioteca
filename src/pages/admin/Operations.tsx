@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { useRole } from "@/hooks/useRole";
 import { fetchMyOperations, createOperation, deleteOperation, updateOperation, type DbOperation } from "@/hooks/useOperation";
+import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -12,6 +13,8 @@ import { toast } from "sonner";
 import { Plus, Pencil, Trash2, Copy, LogOut, Eye, EyeOff, Users, ClipboardList } from "lucide-react";
 import triotecaLogo from "@/assets/trioteca-logo-vert.png";
 
+type InterestRecord = { operation_id: string; bank_name: string };
+
 const PUBLIC_BASE_URL = "https://comparadortrioteca.lovable.app";
 
 const Operations = () => {
@@ -19,6 +22,7 @@ const Operations = () => {
   const { isAdmin } = useRole();
   const navigate = useNavigate();
   const [operations, setOperations] = useState<DbOperation[]>([]);
+  const [interests, setInterests] = useState<InterestRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [deleteId, setDeleteId] = useState<string | null>(null);
 
@@ -35,6 +39,15 @@ const Operations = () => {
       setLoading(true);
       const ops = await fetchMyOperations();
       setOperations(ops);
+      // Fetch client interests for all operations
+      const opIds = ops.map((o) => o.id);
+      if (opIds.length > 0) {
+        const { data } = await supabase
+          .from("client_interests")
+          .select("operation_id, bank_name")
+          .in("operation_id", opIds);
+        setInterests((data as InterestRecord[]) || []);
+      }
     } catch (err: any) {
       toast.error(err.message);
     } finally {
