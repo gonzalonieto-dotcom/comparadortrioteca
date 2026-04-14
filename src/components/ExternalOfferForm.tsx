@@ -163,6 +163,13 @@ const ExternalOfferForm = ({ onAddOffer, existingExternalOffer, onDeleteOffer }:
       advantages: [],
       considerations: [],
       isExternal: true,
+      ...(type === "Mixto" ? {
+        mixedPeriods: [
+          { fromYear: 1, toYear: parseInt(fixedPeriodYears) || 10, fixedTIN: parseFloat(baseTIN) || 0 },
+          { fromYear: (parseInt(fixedPeriodYears) || 10) + 1, toYear: 30, spreadOverEuribor: parseFloat(spreadOverEuribor) || 0.90 },
+        ],
+        euriborRate: 2.45,
+      } : {}),
     };
 
     onAddOffer(offer);
