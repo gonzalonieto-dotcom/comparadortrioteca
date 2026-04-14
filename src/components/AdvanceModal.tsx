@@ -10,6 +10,7 @@ import { CheckCircle2, Circle, ExternalLink, Lock } from "lucide-react";
 import { fetchBankChecklist, ChecklistItemConfig } from "@/lib/bankChecklists";
 import { BankLogo } from "@/lib/bankLogos";
 import { toast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 
 interface AdvanceModalProps {
   open: boolean;
@@ -55,15 +56,14 @@ const AdvanceModal = ({ open, onOpenChange, bankName, bankColor, isExternal, ope
 
     const item = checklist[idx];
 
-    // When gatekeeper is confirmed, notify the gestor via edge function
+    // When gatekeeper is confirmed, save interest to DB
     if (isGatekeeperItem && newStatuses[idx] && operationId && bankName) {
-      const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
-      const url = `https://${projectId}.supabase.co/functions/v1/notify-gestor-interest`;
-      fetch(url, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ operationId, bankName, clientName }),
-      }).catch((err) => console.warn("Failed to notify gestor:", err));
+      supabase
+        .from("client_interests")
+        .upsert({ operation_id: operationId, bank_name: bankName }, { onConflict: "operation_id,bank_name" })
+        .then(({ error }) => {
+          if (error) console.warn("Failed to save interest:", error);
+        });
     }
 
     if (newStatuses[idx] && item.notifyGestorOnComplete) {
