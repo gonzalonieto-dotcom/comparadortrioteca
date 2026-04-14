@@ -17,6 +17,8 @@ interface AdvanceModalProps {
   bankName?: string;
   bankColor?: string;
   isExternal?: boolean;
+  operationId?: string;
+  clientName?: string;
 }
 
 const AdvanceModal = ({ open, onOpenChange, bankName, bankColor, isExternal }: AdvanceModalProps) => {
