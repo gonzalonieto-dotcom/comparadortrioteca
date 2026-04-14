@@ -307,6 +307,8 @@ const ClientComparison = () => {
                 bankName={advOffer?.bankName}
                 bankColor={advOffer?.logoColor}
                 isExternal={advOffer?.isExternal}
+                operationId={operationId || undefined}
+                clientName={clientName || undefined}
               />
             );
           })()}
