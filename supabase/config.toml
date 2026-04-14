@@ -15,6 +15,4 @@ verify_jwt = false
 [functions.import-operation]
 verify_jwt = false
 
-[functions.notify-gestor-interest]
-verify_jwt = false
 

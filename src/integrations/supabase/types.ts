@@ -50,6 +50,27 @@ export type Database = {
         }
         Relationships: []
       }
+      client_interests: {
+        Row: {
+          bank_name: string
+          created_at: string
+          id: string
+          operation_id: string
+        }
+        Insert: {
+          bank_name: string
+          created_at?: string
+          id?: string
+          operation_id: string
+        }
+        Update: {
+          bank_name?: string
+          created_at?: string
+          id?: string
+          operation_id?: string
+        }
+        Relationships: []
+      }
       offer_linkages: {
         Row: {
           annual_cost: number
