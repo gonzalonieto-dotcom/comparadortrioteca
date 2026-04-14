@@ -183,7 +183,7 @@ const BreakevenTab = ({ computedOffers, defaults, partialPayments }: { computedO
             />
             <Legend formatter={(value) => computedOffers.find((c) => c.offer.id === value)?.offer.bankName ?? value} />
             {computedOffers.map((co) => (
-              <Line key={co.offer.id} type="monotone" dataKey={co.offer.id} stroke={co.offer.logoColor} strokeWidth={co.offer.type === "Mixto" ? 3 : 2} dot={false} activeDot={{ r: 4 }} />
+              <Line key={co.offer.id} type="monotone" dataKey={co.offer.id} stroke={co.offer.logoColor} strokeWidth={co.offer.type === "Mixto" ? 3 : 2} dot={false} activeDot={{ r: 4 }} connectNulls={false} />
             ))}
           </LineChart>
         </ResponsiveContainer>
