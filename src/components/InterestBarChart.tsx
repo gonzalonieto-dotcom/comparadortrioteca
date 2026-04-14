@@ -74,54 +74,75 @@ const BreakevenTab = ({ computedOffers, defaults, partialPayments }: { computedO
       return calcCumulativeCostByYear(computedOffers, defaults);
     }
 
-    // Recalculate with partial payments
-    const years = [];
-    for (let y = 1; y <= defaults.termYears; y++) {
-      const row: any = { year: y };
-      for (const co of computedOffers) {
-        const offer = co.offer;
-        const termMonths = defaults.termYears * 12;
-        const bonifiedTIN = calcBonifiedTIN(offer);
-        let balance = defaults.loanAmount;
-        let totalCost = offer.upfrontCostsEUR + defaults.appraisalCostEUR;
-        let currentRate = -1;
-        let payment = 0;
+    // Recalculate with partial payments — simulate full term once per offer,
+    // then populate year rows (null after payoff so the line stops).
+    const payoffYear: Record<string, number> = {};
+    const finalCost: Record<string, number[]> = {};
 
-        for (let m = 1; m <= Math.min(y * 12, termMonths); m++) {
-          if (balance <= 0) break;
-          if (m % 12 === 1 || m === 1) {
-            const yr = Math.ceil(m / 12);
-            const partial = partialPayments.filter(p => p.year === yr).reduce((s, p) => s + p.amount, 0);
-            if (partial > 0) balance = Math.max(balance - partial, 0);
-            if (balance <= 0) break;
-          }
-          let rate = bonifiedTIN;
-          if (offer.mixedPeriods?.length) {
-            const yr = Math.ceil(m / 12);
-            for (const period of offer.mixedPeriods) {
-              if (yr >= period.fromYear && yr <= period.toYear) {
-                if (period.fixedTIN !== undefined) {
-                  const disc = offer.linkages.filter(l => l.isActive).reduce((s, l) => s + l.discountWeightPct, 0);
-                  rate = Math.max(period.fixedTIN - disc, 0.01);
-                } else if (period.spreadOverEuribor !== undefined) {
-                  rate = Math.max((offer.euriborRate ?? 2.45) + period.spreadOverEuribor, 0.01);
-                }
+    for (const co of computedOffers) {
+      const offer = co.offer;
+      const termMonths = defaults.termYears * 12;
+      const bonifiedTIN = calcBonifiedTIN(offer);
+      let balance = defaults.loanAmount;
+      let totalCost = offer.upfrontCostsEUR + defaults.appraisalCostEUR;
+      let currentRate = -1;
+      let payment = 0;
+      let paidOff = false;
+      const costByYear: number[] = [];
+
+      for (let m = 1; m <= termMonths; m++) {
+        if (paidOff) break;
+        if (m % 12 === 1 || m === 1) {
+          const yr = Math.ceil(m / 12);
+          const partial = partialPayments.filter(p => p.year === yr).reduce((s, p) => s + p.amount, 0);
+          if (partial > 0) balance = Math.max(balance - partial, 0);
+          if (balance <= 0) { paidOff = true; payoffYear[co.offer.id] = yr; costByYear.push(totalCost + co.annualLinkageCost * yr + offer.monthlyAccountCostEUR * yr * 12); break; }
+        }
+        let rate = bonifiedTIN;
+        if (offer.mixedPeriods?.length) {
+          const yr = Math.ceil(m / 12);
+          for (const period of offer.mixedPeriods) {
+            if (yr >= period.fromYear && yr <= period.toYear) {
+              if (period.fixedTIN !== undefined) {
+                const disc = offer.linkages.filter(l => l.isActive).reduce((s, l) => s + l.discountWeightPct, 0);
+                rate = Math.max(period.fixedTIN - disc, 0.01);
+              } else if (period.spreadOverEuribor !== undefined) {
+                rate = Math.max((offer.euriborRate ?? 2.45) + period.spreadOverEuribor, 0.01);
               }
             }
           }
-          const remaining = termMonths - m + 1;
-          if (rate !== currentRate) {
-            currentRate = rate;
-            const r = rate / 100 / 12;
-            payment = r === 0 ? balance / remaining : (balance * r * Math.pow(1 + r, remaining)) / (Math.pow(1 + r, remaining) - 1);
-          }
-          const r = rate / 100 / 12;
-          const interest = balance * r;
-          totalCost += interest;
-          balance = Math.max(balance - (payment - interest), 0);
         }
-        totalCost += co.annualLinkageCost * y + offer.monthlyAccountCostEUR * y * 12;
-        row[co.offer.id] = totalCost;
+        const remaining = termMonths - m + 1;
+        if (rate !== currentRate) {
+          currentRate = rate;
+          const r = rate / 100 / 12;
+          payment = r === 0 ? balance / remaining : (balance * r * Math.pow(1 + r, remaining)) / (Math.pow(1 + r, remaining) - 1);
+        }
+        const r = rate / 100 / 12;
+        const interest = balance * r;
+        totalCost += interest;
+        balance = Math.max(balance - (payment - interest), 0);
+        if (balance <= 0) { paidOff = true; payoffYear[co.offer.id] = Math.ceil(m / 12); }
+        // snapshot at end of each year
+        if (m % 12 === 0 || paidOff) {
+          const yr = Math.ceil(m / 12);
+          const yearCost = totalCost + co.annualLinkageCost * yr + offer.monthlyAccountCostEUR * yr * 12;
+          while (costByYear.length < yr) costByYear.push(yearCost);
+        }
+      }
+      if (!paidOff) payoffYear[co.offer.id] = defaults.termYears;
+      finalCost[co.offer.id] = costByYear;
+    }
+
+    // Find max year any offer runs
+    const maxYear = Math.max(...Object.values(payoffYear));
+    const years = [];
+    for (let y = 1; y <= maxYear; y++) {
+      const row: any = { year: y };
+      for (const co of computedOffers) {
+        const arr = finalCost[co.offer.id];
+        // null after payoff → line stops
+        row[co.offer.id] = y <= (payoffYear[co.offer.id] ?? defaults.termYears) && arr[y - 1] !== undefined ? arr[y - 1] : null;
       }
       years.push(row);
     }
