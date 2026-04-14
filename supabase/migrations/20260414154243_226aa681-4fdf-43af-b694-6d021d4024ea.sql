@@ -1,0 +1,1 @@
+ALTER TABLE public.operations ADD COLUMN inflation_rate numeric DEFAULT 3.0;

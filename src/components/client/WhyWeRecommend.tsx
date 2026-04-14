@@ -1,5 +1,5 @@
 import { ComputedOffer } from "@/lib/mortgageCalc";
-import { TrendingDown, Shield, Zap, Award, Scale } from "lucide-react";
+import { TrendingDown, Shield, Zap, Award, Scale, ArrowDownUp } from "lucide-react";
 import { InfoTooltip } from "@/components/InfoTooltip";
 import { forwardRef } from "react";
 
@@ -17,6 +17,7 @@ const WhyWeRecommend = forwardRef<HTMLDivElement, WhyWeRecommendProps>(
   ({ computed, savingsVsNext, allOffers, isCouple = false }, ref) => {
     const o = computed.offer;
     const activeLinkages = o.linkages.filter((l) => l.isActive);
+    const isMixed = o.type === "Mixto" && computed.periodBreakdown.length > 0;
 
     const reasons: { icon: React.ReactNode; title: string; text: string }[] = [];
 
@@ -31,6 +32,16 @@ const WhyWeRecommend = forwardRef<HTMLDivElement, WhyWeRecommendProps>(
         icon: <Scale className="h-5 w-5 text-accent flex-shrink-0" />,
         title: "Diferencia significativa",
         text: `Supone aproximadamente ${fmt(savingsVsNext)} menos que la siguiente mejor opción a lo largo de la vida de la hipoteca.`,
+      });
+    }
+
+    if (isMixed) {
+      reasons.push({
+        icon: <ArrowDownUp className="h-5 w-5 text-accent flex-shrink-0" />,
+        title: "Cuota inicial más baja con hipoteca mixta",
+        text: isCouple
+          ? "La estructura mixta os permite disfrutar de una cuota inicial más baja durante los primeros años, con la posibilidad de amortizar anticipadamente antes de que comience el periodo variable."
+          : "La estructura mixta te permite disfrutar de una cuota inicial más baja durante los primeros años, con la posibilidad de amortizar anticipadamente antes de que comience el periodo variable.",
       });
     }
 

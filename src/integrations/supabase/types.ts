@@ -197,6 +197,7 @@ export type Database = {
           created_by: string
           home_insurance_annual: number
           id: string
+          inflation_rate: number | null
           is_published: boolean
           life_insurance_annual: number
           loan_amount: number
@@ -212,6 +213,7 @@ export type Database = {
           created_by: string
           home_insurance_annual?: number
           id?: string
+          inflation_rate?: number | null
           is_published?: boolean
           life_insurance_annual?: number
           loan_amount?: number
@@ -227,6 +229,7 @@ export type Database = {
           created_by?: string
           home_insurance_annual?: number
           id?: string
+          inflation_rate?: number | null
           is_published?: boolean
           life_insurance_annual?: number
           loan_amount?: number

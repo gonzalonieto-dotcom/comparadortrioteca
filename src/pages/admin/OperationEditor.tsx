@@ -36,7 +36,7 @@ const OperationEditor = () => {
   const [op, setOp] = useState({
     purchase_price: 0, appraisal_value: 0, loan_amount: 0, term_years: 30,
     home_insurance_annual: 0, life_insurance_annual: 0, appraisal_cost: 0,
-    client_name: "",
+    client_name: "", inflation_rate: 3.0,
   });
   const [shareToken, setShareToken] = useState("");
   const [isPublished, setIsPublished] = useState(false);
@@ -50,19 +50,25 @@ const OperationEditor = () => {
     if (user && id) loadData();
   }, [user, id]);
 
-  // Fetch Euribor on mount
+  // Fetch Euribor and inflation on mount
   useEffect(() => {
-    const fetchEuribor = async () => {
+    const fetchRates = async () => {
       try {
-        const { data, error } = await supabase.functions.invoke("fetch-euribor");
-        if (!error && data?.success && typeof data.euribor === "number") {
-          setEuriborRate(data.euribor);
+        const [euriborRes, inflationRes] = await Promise.all([
+          supabase.functions.invoke("fetch-euribor"),
+          supabase.functions.invoke("fetch-inflation"),
+        ]);
+        if (!euriborRes.error && euriborRes.data?.success && typeof euriborRes.data.euribor === "number") {
+          setEuriborRate(euriborRes.data.euribor);
+        }
+        if (!inflationRes.error && inflationRes.data?.success && typeof inflationRes.data.inflation === "number") {
+          setOp(prev => prev.inflation_rate === 3.0 ? { ...prev, inflation_rate: inflationRes.data.inflation } : prev);
         }
       } catch (e) {
-        console.warn("Could not fetch Euribor:", e);
+        console.warn("Could not fetch rates:", e);
       }
     };
-    fetchEuribor();
+    fetchRates();
   }, []);
 
   const loadData = async () => {
@@ -81,6 +87,7 @@ const OperationEditor = () => {
         life_insurance_annual: dbOp.life_insurance_annual,
         appraisal_cost: dbOp.appraisal_cost,
         client_name: dbOp.client_name || "",
+        inflation_rate: (dbOp as any).inflation_rate ?? 3.0,
       });
       setShareToken(dbOp.share_token);
       setIsPublished(dbOp.is_published);
@@ -93,7 +100,6 @@ const OperationEditor = () => {
           discount_weight_pct: l.discount_weight_pct,
           annual_cost: l.annual_cost,
         }));
-        // DB stores TIN sin bonificar; subtract active discounts to show bonified TIN to gestor
         const activeDiscount = offerLinkages
           .filter((l) => l.is_active_default)
           .reduce((s, l) => s + l.discount_weight_pct, 0);
@@ -145,7 +151,6 @@ const OperationEditor = () => {
       for (let i = 0; i < offers.length; i++) {
         const offer = offers[i];
 
-        // Compute TAE & payment for persistence
         const linkages: Linkage[] = offer.linkages.map((l, j) => ({
           id: `l-${j}`, label: l.label, isActive: l.is_active_default,
           discountWeightPct: l.discount_weight_pct, annualCostEUR: l.annual_cost,
@@ -291,6 +296,17 @@ const OperationEditor = () => {
               <div>
                 <Label>Plazo (años)</Label>
                 <Input type="number" value={op.term_years} onFocus={(e) => e.target.select()} onChange={(e) => setOp(prev => ({ ...prev, term_years: +e.target.value }))} />
+              </div>
+              <div>
+                <Label>Inflación anual estimada %</Label>
+                <Input
+                  type="number"
+                  step="0.1"
+                  value={op.inflation_rate}
+                  onFocus={(e) => e.target.select()}
+                  onChange={(e) => setOp(prev => ({ ...prev, inflation_rate: +e.target.value }))}
+                  placeholder="3.0"
+                />
               </div>
             </div>
           </CardContent>

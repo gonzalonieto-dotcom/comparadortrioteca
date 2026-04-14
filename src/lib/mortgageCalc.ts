@@ -34,7 +34,6 @@ function getAnnualRateForMonth(offer: Offer, month: number, bonifiedTIN: number)
   for (const period of offer.mixedPeriods) {
     if (year >= period.fromYear && year <= period.toYear) {
       if (period.fixedTIN !== undefined) {
-        // Apply bonification discount to fixed period
         const totalDiscount = offer.linkages
           .filter((l) => l.isActive)
           .reduce((sum, l) => sum + l.discountWeightPct, 0);
@@ -59,7 +58,6 @@ export function generateAmortizationSchedule(
   let balance = loanAmount;
 
   if (offer?.mixedPeriods && offer.mixedPeriods.length > 0) {
-    // Mixed mortgage: recalculate payment at each period boundary
     const bonifiedTIN = calcBonifiedTIN(offer);
     let currentRate = -1;
     let payment = 0;
@@ -68,7 +66,6 @@ export function generateAmortizationSchedule(
       const rate = getAnnualRateForMonth(offer, m, bonifiedTIN);
       const remainingMonths = termMonths - m + 1;
 
-      // Recalculate payment when rate changes
       if (rate !== currentRate) {
         currentRate = rate;
         payment = calcMonthlyPayment(balance, rate, remainingMonths);
@@ -81,7 +78,6 @@ export function generateAmortizationSchedule(
       rows.push({ month: m, year: Math.ceil(m / 12), payment, interest, principal, remainingBalance: balance });
     }
   } else {
-    // Standard fixed rate
     const r = annualRate / 100 / 12;
     const payment = calcMonthlyPayment(loanAmount, annualRate, termMonths);
 
@@ -100,14 +96,22 @@ export function calcTotalInterest(schedule: AmortizationRow[]): number {
   return schedule.reduce((s, r) => s + r.interest, 0);
 }
 
-// ─── Total linkage cost ───
-export function calcTotalLinkageCost(offer: Offer, termYears: number): number {
+// ─── Total linkage cost (with optional inflation) ───
+export function calcTotalLinkageCost(offer: Offer, termYears: number, inflationRate?: number): number {
+  const inf = (inflationRate ?? 0) / 100;
   return offer.linkages
     .filter((l) => l.isActive)
     .reduce((s, l) => {
-      // Special: "1er año" linkages only count 1 year
       if (l.label.toLowerCase().includes("1er año") || l.label.toLowerCase().includes("primer año")) {
         return s + l.annualCostEUR;
+      }
+      if (inf > 0) {
+        // Compound inflation: sum of cost * (1+inf)^i for i=0..termYears-1
+        let total = 0;
+        for (let i = 0; i < termYears; i++) {
+          total += l.annualCostEUR * Math.pow(1 + inf, i);
+        }
+        return s + total;
       }
       return s + l.annualCostEUR * termYears;
     }, 0);
@@ -122,10 +126,11 @@ export function calcAnnualLinkageCost(offer: Offer): number {
 export function calcTotalCost(
   offer: Offer,
   defaults: OperationDefaults,
-  schedule: AmortizationRow[]
+  schedule: AmortizationRow[],
+  inflationRate?: number
 ): number {
   const totalInterest = calcTotalInterest(schedule);
-  const totalLinkage = calcTotalLinkageCost(offer, defaults.termYears);
+  const totalLinkage = calcTotalLinkageCost(offer, defaults.termYears, inflationRate);
   const termMonths = defaults.termYears * 12;
   const totalAccountCost = offer.monthlyAccountCostEUR * termMonths;
   return totalInterest + totalLinkage + offer.upfrontCostsEUR + totalAccountCost + defaults.appraisalCostEUR;
@@ -137,10 +142,8 @@ export function calcEstimatedTAE(
   defaults: OperationDefaults,
   schedule: AmortizationRow[]
 ): number {
-  const termMonths = defaults.termYears * 12;
   const netReceived = defaults.loanAmount - offer.upfrontCostsEUR - defaults.appraisalCostEUR;
 
-  // Build cashflow array from schedule + linkage costs
   const annualLinkageCost = calcAnnualLinkageCost(offer);
   const monthlyExtra = offer.monthlyAccountCostEUR + annualLinkageCost / 12;
   const cashflows = schedule.map((r) => r.payment + monthlyExtra);
@@ -167,6 +170,47 @@ export function calcEstimatedTAE(
   return (Math.pow(1 + irrMonthly, 12) - 1) * 100;
 }
 
+// ─── Period breakdown for mixed mortgages ───
+export interface PeriodBreakdown {
+  label: string;
+  fromYear: number;
+  toYear: number;
+  avgMonthlyPayment: number;
+  totalInterest: number;
+  rate: number;
+  isVariable: boolean;
+}
+
+export function calcPeriodBreakdown(offer: Offer, schedule: AmortizationRow[]): PeriodBreakdown[] {
+  if (!offer.mixedPeriods || offer.mixedPeriods.length === 0) return [];
+
+  const totalDiscount = offer.linkages
+    .filter((l) => l.isActive)
+    .reduce((sum, l) => sum + l.discountWeightPct, 0);
+
+  return offer.mixedPeriods.map((period) => {
+    const rows = schedule.filter((r) => r.year >= period.fromYear && r.year <= period.toYear);
+    const totalInterest = rows.reduce((s, r) => s + r.interest, 0);
+    const avgPayment = rows.length > 0 ? rows.reduce((s, r) => s + r.payment, 0) / rows.length : 0;
+    const isVariable = period.spreadOverEuribor !== undefined;
+    const rate = isVariable
+      ? (offer.euriborRate ?? 2.45) + period.spreadOverEuribor!
+      : Math.max((period.fixedTIN ?? 0) - totalDiscount, 0.01);
+
+    return {
+      label: isVariable
+        ? `Años ${period.fromYear}-${period.toYear} (variable)`
+        : `Años ${period.fromYear}-${period.toYear} (fijo)`,
+      fromYear: period.fromYear,
+      toYear: period.toYear,
+      avgMonthlyPayment: avgPayment,
+      totalInterest,
+      rate,
+      isVariable,
+    };
+  });
+}
+
 // ─── Computed offer summary ───
 export interface ComputedOffer {
   offer: Offer;
@@ -178,12 +222,12 @@ export interface ComputedOffer {
   totalCost: number;
   taeEstimated: number;
   annualLinkageCost: number;
-  // For mixed: display the variable rate too
   variableRate?: number;
+  periodBreakdown: PeriodBreakdown[];
+  insuranceCostWithInflation?: number;
 }
 
-export function computeOffer(offer: Offer, defaults: OperationDefaults): ComputedOffer {
-  // Use per-offer term if set, otherwise global
+export function computeOffer(offer: Offer, defaults: OperationDefaults, inflationRate?: number): ComputedOffer {
   const effectiveTermYears = offer.termYears ?? defaults.termYears;
   const effectiveDefaults = effectiveTermYears !== defaults.termYears
     ? { ...defaults, termYears: effectiveTermYears }
@@ -193,10 +237,11 @@ export function computeOffer(offer: Offer, defaults: OperationDefaults): Compute
   const schedule = generateAmortizationSchedule(effectiveDefaults.loanAmount, bonifiedTIN, termMonths, offer);
   const monthlyPayment = schedule[0]?.payment ?? 0;
   const totalInterest = calcTotalInterest(schedule);
-  const totalLinkageCost = calcTotalLinkageCost(offer, effectiveTermYears);
-  const totalCost = calcTotalCost(offer, effectiveDefaults, schedule);
+  const totalLinkageCost = calcTotalLinkageCost(offer, effectiveTermYears, inflationRate);
+  const totalCost = calcTotalCost(offer, effectiveDefaults, schedule, inflationRate);
   const taeEstimated = calcEstimatedTAE(offer, effectiveDefaults, schedule);
   const annualLinkageCost = calcAnnualLinkageCost(offer);
+  const periodBreakdown = calcPeriodBreakdown(offer, schedule);
 
   let variableRate: number | undefined;
   if (offer.mixedPeriods) {
@@ -204,6 +249,13 @@ export function computeOffer(offer: Offer, defaults: OperationDefaults): Compute
     if (varPeriod) {
       variableRate = (offer.euriborRate ?? 2.45) + varPeriod.spreadOverEuribor!;
     }
+  }
+
+  // Calculate insurance cost with inflation separately for display
+  let insuranceCostWithInflation: number | undefined;
+  if (inflationRate && inflationRate > 0) {
+    const withoutInflation = calcTotalLinkageCost(offer, effectiveTermYears, 0);
+    insuranceCostWithInflation = totalLinkageCost - withoutInflation + withoutInflation;
   }
 
   return {
@@ -217,6 +269,8 @@ export function computeOffer(offer: Offer, defaults: OperationDefaults): Compute
     taeEstimated,
     annualLinkageCost,
     variableRate,
+    periodBreakdown,
+    insuranceCostWithInflation,
   };
 }
 
