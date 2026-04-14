@@ -376,6 +376,32 @@ const ExternalOfferForm = ({ onAddOffer, existingExternalOffer, onDeleteOffer }:
             className="mt-1"
           />
         </div>
+        {type === "Mixto" && (
+          <>
+            <div>
+              <Label className="text-xs text-muted-foreground">Años periodo fijo</Label>
+              <Input
+                type="number"
+                step="1"
+                placeholder="Ej: 10"
+                value={fixedPeriodYears}
+                onChange={(e) => setFixedPeriodYears(e.target.value)}
+                className="mt-1"
+              />
+            </div>
+            <div>
+              <Label className="text-xs text-muted-foreground">Diferencial sobre Euríbor (%)</Label>
+              <Input
+                type="number"
+                step="0.01"
+                placeholder="Ej: 0.90"
+                value={spreadOverEuribor}
+                onChange={(e) => setSpreadOverEuribor(e.target.value)}
+                className="mt-1"
+              />
+            </div>
+          </>
+        )}
       </div>
 
       <div className="mb-5">
