@@ -25,6 +25,7 @@ const EnhancedRecommendedCard = ({
 }: EnhancedRecommendedCardProps) => {
   const o = computed.offer;
   const activeLinkages = o.linkages.filter((l) => l.isActive);
+  const hasPeriods = computed.periodBreakdown.length > 0;
 
   return (
     <div className="relative bg-card rounded-2xl border-2 border-primary shadow-lg shadow-primary/8 overflow-hidden">
@@ -50,10 +51,23 @@ const EnhancedRecommendedCard = ({
         <div className="grid grid-cols-2 md:grid-cols-4 gap-5 md:gap-8 mb-8">
           <div>
             <p className="text-xs text-muted-foreground flex items-center gap-1 mb-1.5">
-              Cuota mensual
+              {hasPeriods ? "Cuota inicial" : "Cuota mensual"}
               <InfoTooltip text="Es lo que pagarías cada mes. Conviene verla junto con el resto de condiciones para tomar una buena decisión." />
             </p>
             <p className="text-3xl md:text-4xl font-bold text-foreground tracking-tight">{fmt(computed.monthlyPayment)}</p>
+            {hasPeriods && computed.periodBreakdown.length >= 2 && (
+              <div className="mt-1.5">
+                <p className="text-xs text-muted-foreground">
+                  A partir del año {computed.periodBreakdown[1].fromYear}:
+                </p>
+                <p className="text-lg font-semibold text-foreground">
+                  ~{fmt(computed.periodBreakdown[1].avgMonthlyPayment)}/mes
+                </p>
+                <p className="text-[10px] text-muted-foreground">
+                  (Euríbor + {computed.periodBreakdown[1].rate.toFixed(2)}%)
+                </p>
+              </div>
+            )}
           </div>
           <div>
             <p className="text-xs text-muted-foreground flex items-center gap-1 mb-1.5">
@@ -61,6 +75,11 @@ const EnhancedRecommendedCard = ({
               <InfoTooltip text="TIN = Tipo de Interés Nominal. Es el porcentaje que el banco cobra sobre el dinero prestado. Este ya incluye el descuento de las bonificaciones activas." />
             </p>
             <p className="text-2xl font-bold text-primary">{computed.bonifiedTIN.toFixed(2)} %</p>
+            {computed.variableRate !== undefined && (
+              <p className="text-xs text-muted-foreground mt-1">
+                Luego: {computed.variableRate.toFixed(2)}%
+              </p>
+            )}
           </div>
           <div>
             <p className="text-xs text-muted-foreground flex items-center gap-1 mb-1.5">

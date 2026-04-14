@@ -13,7 +13,7 @@ import LinkageEditor, { type LinkageFormData, PRESET_LINKAGES } from "./LinkageE
 import PdfDropZone from "./PdfDropZone";
 import MixedPeriodEditor, { type MixedPeriodFormData } from "./MixedPeriodEditor";
 import type { Offer, OperationDefaults, Linkage, MixedRatePeriod } from "@/data/mortgageData";
-import { calcMonthlyPayment, calcEstimatedTAE, generateAmortizationSchedule, calcBonifiedTIN } from "@/lib/mortgageCalc";
+import { calcMonthlyPayment, calcEstimatedTAE, generateAmortizationSchedule, calcBonifiedTIN, calcPeriodBreakdown } from "@/lib/mortgageCalc";
 import { BankLogo } from "@/lib/bankLogos";
 
 export const BANK_PRESETS: Record<string, { color: string }> = {
@@ -83,8 +83,6 @@ function toCalcOffer(f: OfferFormData): Offer {
       }))
     : undefined;
 
-  // baseTIN in form is the bonified TIN. The calc engine expects baseTIN as
-  // the NON-bonified rate (baseTIN = bonifiedTIN + sum of linkage discounts).
   const totalDiscount = linkages
     .filter((l) => l.isActive)
     .reduce((s, l) => s + l.discountWeightPct, 0);
@@ -94,7 +92,7 @@ function toCalcOffer(f: OfferFormData): Offer {
     bankName: f.bank_name,
     logoColor: f.logo_color,
     type: f.type as Offer["type"],
-    baseTIN: f.base_tin + totalDiscount, // engine subtracts discounts to get bonified
+    baseTIN: f.base_tin + totalDiscount,
     amortizationFeePct: f.amortization_fee_pct,
     upfrontCostsEUR: f.upfront_costs,
     monthlyAccountCostEUR: f.monthly_account_cost,
@@ -106,21 +104,34 @@ function toCalcOffer(f: OfferFormData): Offer {
   };
 }
 
+const fmt = (n: number) =>
+  new Intl.NumberFormat("es-ES", { style: "currency", currency: "EUR", maximumFractionDigits: 0 }).format(n);
+
 const OfferEditor = ({ offer, index, onChange, onDelete, loanAmount, termYears, appraisalCost, expanded: expandedProp, onToggle }: Props) => {
   const [expandedLocal, setExpandedLocal] = useState(true);
   const expanded = expandedProp !== undefined ? expandedProp : expandedLocal;
   const toggleExpanded = onToggle || (() => setExpandedLocal(!expandedLocal));
 
-  const update = (patch: Partial<OfferFormData>) => onChange({ ...offer, ...patch });
+  const update = (patch: Partial<OfferFormData>) => {
+    const updated = { ...offer, ...patch };
+    // Auto-create default mixed periods when switching to Mixto
+    if (patch.type === "Mixto" && updated.mixedPeriods.length === 0) {
+      const years = updated.term_years_override ?? termYears ?? 30;
+      updated.mixedPeriods = [
+        { from_year: 1, to_year: 10, fixed_tin: updated.base_tin || 1.5, spread_over_euribor: null },
+        { from_year: 11, to_year: years, fixed_tin: null, spread_over_euribor: 0.90 },
+      ];
+    }
+    onChange(updated);
+  };
 
   const handlePdfExtracted = (data: Partial<OfferFormData>) => {
-    // Merge extracted data, setting logo_color from bank preset if available
     const preset = data.bank_name ? BANK_PRESETS[data.bank_name] : undefined;
     onChange({
       ...offer,
       ...data,
       logo_color: preset?.color || offer.logo_color,
-      considerations: offer.considerations, // preserve
+      considerations: offer.considerations,
       sort_order: offer.sort_order,
     });
     toast.success("Datos extraídos del PDF — revisa y ajusta");
@@ -131,8 +142,8 @@ const OfferEditor = ({ offer, index, onChange, onDelete, loanAmount, termYears, 
     update({ bank_name: bankName, logo_color: preset?.color || offer.logo_color });
   };
 
-  // ─── Auto-computed TAE & payment ───
-  const { computedTAE, computedPayment } = useMemo(() => {
+  // ─── Auto-computed TAE, payment & period breakdown ───
+  const { computedTAE, computedPayment, periodBreakdown } = useMemo(() => {
     const loan = loanAmount || 200000;
     const years = offer.term_years_override ?? termYears ?? 30;
     const termMonths = years * 12;
@@ -154,8 +165,9 @@ const OfferEditor = ({ offer, index, onChange, onDelete, loanAmount, termYears, 
     const schedule = generateAmortizationSchedule(loan, bonifiedTIN, termMonths, calcOffer);
     const payment = schedule[0]?.payment ?? calcMonthlyPayment(loan, bonifiedTIN, termMonths);
     const tae = calcEstimatedTAE(calcOffer, defaults, schedule);
+    const breakdown = calcPeriodBreakdown(calcOffer, schedule);
 
-    return { computedTAE: tae, computedPayment: payment };
+    return { computedTAE: tae, computedPayment: payment, periodBreakdown: breakdown };
   }, [offer, loanAmount, termYears, appraisalCost]);
 
   return (
@@ -253,17 +265,43 @@ const OfferEditor = ({ offer, index, onChange, onDelete, loanAmount, termYears, 
                   <Input
                     type="number"
                     step="0.01"
-                    value={offer.mixedPeriods?.[0]?.spread_over_euribor ?? ""}
+                    value={offer.mixedPeriods?.[1]?.spread_over_euribor ?? offer.mixedPeriods?.[0]?.spread_over_euribor ?? ""}
                     onChange={(e) => {
                       const spread = e.target.value ? +e.target.value : null;
-                      const periods = offer.mixedPeriods.length > 0
-                        ? offer.mixedPeriods.map((p, i) => i === 0 ? { ...p, spread_over_euribor: spread } : p)
-                        : [{ from_year: 1, to_year: 30, fixed_tin: null, spread_over_euribor: spread }];
+                      const years = offer.term_years_override ?? termYears ?? 30;
+                      let periods = [...offer.mixedPeriods];
+                      if (periods.length >= 2) {
+                        // Update the variable period (second one)
+                        periods = periods.map((p, i) => i === 1 ? { ...p, spread_over_euribor: spread } : p);
+                      } else if (periods.length === 1) {
+                        periods.push({ from_year: 11, to_year: years, fixed_tin: null, spread_over_euribor: spread });
+                      } else {
+                        periods = [
+                          { from_year: 1, to_year: 10, fixed_tin: offer.base_tin, spread_over_euribor: null },
+                          { from_year: 11, to_year: years, fixed_tin: null, spread_over_euribor: spread },
+                        ];
+                      }
                       update({ mixedPeriods: periods });
                     }}
                     placeholder="Ej: 0.75"
                   />
                 </div>
+              </div>
+            )}
+
+            {/* Mixed period breakdown (read-only) */}
+            {offer.type === "Mixto" && periodBreakdown.length > 0 && (
+              <div className="bg-muted/50 rounded-lg p-3 space-y-2">
+                <Label className="text-xs font-medium text-muted-foreground">Desglose por tramo (auto-calculado)</Label>
+                {periodBreakdown.map((pb, i) => (
+                  <div key={i} className="flex items-center justify-between text-xs">
+                    <span className="text-card-foreground">{pb.label}</span>
+                    <div className="flex gap-4">
+                      <span className="text-muted-foreground">TIN: {pb.rate.toFixed(2)}%</span>
+                      <span className="font-medium text-card-foreground">Cuota: {fmt(pb.avgMonthlyPayment)}</span>
+                    </div>
+                  </div>
+                ))}
               </div>
             )}
 

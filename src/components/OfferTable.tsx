@@ -184,12 +184,22 @@ const DesktopTable = ({ computedOffers, onToggleLinkage, recommendedId, onAdvanc
                         Luego: {co.variableRate.toFixed(2)}% (Euríbor + diferencial)
                       </p>
                     )}
+                    {co.periodBreakdown.length > 0 && (
+                      <p className="text-[10px] text-primary/70 mt-0.5">
+                        Variable a partir del año {co.periodBreakdown.find(p => p.isVariable)?.fromYear ?? "—"}
+                      </p>
+                    )}
                   </td>
                   <td className="px-5 py-4 text-right">
                     <span className="text-xs text-muted-foreground">{co.taeEstimated.toFixed(2)} %</span>
                   </td>
                   <td className="px-5 py-4">
                     <MonthlyWithInsurance co={co} />
+                    {co.periodBreakdown.length >= 2 && (
+                      <p className="text-[10px] text-muted-foreground mt-1 text-right">
+                        Año {co.periodBreakdown[1].fromYear}+: ~{fmt(co.periodBreakdown[1].avgMonthlyPayment)}/mes
+                      </p>
+                    )}
                   </td>
                   <td className="px-5 py-4">
                     {o.isExternal ? (
