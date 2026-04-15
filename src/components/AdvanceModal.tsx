@@ -60,9 +60,10 @@ const AdvanceModal = ({ open, onOpenChange, bankName, bankColor, isExternal, ope
     if (isGatekeeperItem && newStatuses[idx] && operationId && bankName) {
       supabase
         .from("client_interests")
-        .upsert({ operation_id: operationId, bank_name: bankName }, { onConflict: "operation_id,bank_name" })
+        .insert({ operation_id: operationId, bank_name: bankName })
         .then(({ error }) => {
-          if (error) console.warn("Failed to save interest:", error);
+          // Ignore unique constraint violations (duplicate interest)
+          if (error && error.code !== "23505") console.warn("Failed to save interest:", error);
         });
     }
 
