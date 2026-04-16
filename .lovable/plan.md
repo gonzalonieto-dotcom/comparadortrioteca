@@ -1,44 +1,30 @@
 
 
-## Plan: Notificación in-app al gestor cuando el cliente confirma interés
+## Plan: Corregir seguros y aplicar inflación anual correctamente
 
-### Enfoque
-En lugar de enviar un email, guardar en la base de datos qué banco le interesó al cliente. El gestor verá un tag/badge directamente en su listado de operaciones indicando "Cliente interesado en X banco".
+### Problemas identificados
 
-### Cambios técnicos
+1. **Tooltips inventan datos de seguros**: El componente `InsuranceBasis` en `OfferTable.tsx` muestra texto inventado como "estimado para perfil estándar (edad 30-45, no fumador)". Los costes de seguros los ingresa el gestor como bonificaciones con coste anual — no hay que inventar descripciones.
 
-**1. Nueva tabla `client_interests` (migración SQL)**
-```sql
-CREATE TABLE public.client_interests (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  operation_id uuid NOT NULL,
-  bank_name text NOT NULL,
-  created_at timestamptz NOT NULL DEFAULT now(),
-  UNIQUE(operation_id, bank_name)
-);
-ALTER TABLE public.client_interests ENABLE ROW LEVEL SECURITY;
+2. **Inflación no se aplica al coste acumulado por año**: `calcCumulativeCostByYear` usa `annualLinkageCost * y` (lineal, sin inflación). Debería sumar año a año con inflación compuesta.
 
--- Anon puede insertar (el cliente público)
-CREATE POLICY "Anon can insert interests"
-  ON public.client_interests FOR INSERT TO anon
-  WITH CHECK (true);
+3. **`insuranceCostWithInflation` está mal calculado**: Línea 258 hace `totalLinkageCost - withoutInflation + withoutInflation` que es simplemente `totalLinkageCost` — no aporta nada.
 
--- Gestores autenticados leen los de sus operaciones
-CREATE POLICY "Gestors read own interests"
-  ON public.client_interests FOR SELECT TO authenticated
-  USING (operation_id IN (
-    SELECT id FROM operations WHERE created_by = auth.uid()
-  ));
-```
+### Cambios
 
-**2. Modificar `AdvanceModal.tsx`**
-- Reemplazar la llamada a la edge function `notify-gestor-interest` por un INSERT directo a `client_interests` usando el cliente Supabase (con la clave anon, ya que la política permite inserts anónimos).
-- Eliminar la referencia a la edge function.
+**1. `src/components/OfferTable.tsx`**
+- Eliminar el componente `InsuranceBasis` completo (líneas 44-62).
+- En el popover de "Detalle costes" (línea 98), quitar la referencia a `<InsuranceBasis />`.
+- En el popover de "MonthlyWithInsurance" (línea 119), reemplazar `<InsuranceBasis />` por un listado simple de las bonificaciones activas con coste > 0 (sin texto inventado).
 
-**3. Modificar `src/pages/admin/Operations.tsx`**
-- Al cargar operaciones, consultar también `client_interests` para las operaciones del gestor.
-- Mostrar un `<Badge>` adicional en la fila de cada operación: "🟢 Interesado en {bankName}" por cada registro encontrado.
+**2. `src/lib/mortgageCalc.ts` — `calcCumulativeCostByYear`**
+- Recibir `inflationRate` como parámetro adicional.
+- Calcular el coste acumulado de bonificaciones por año con inflación compuesta: para cada año `y`, sumar `annualCost * (1+inf)^i` para `i=0..y-1`.
+- Esto hará que el gráfico de línea refleje el coste real inflacionado.
 
-**4. Limpiar edge function**
-- Eliminar `supabase/functions/notify-gestor-interest/index.ts` (ya no se necesita).
+**3. `src/lib/mortgageCalc.ts` — `insuranceCostWithInflation`**
+- Corregir o eliminar este campo ya que actualmente no calcula nada útil.
+
+**4. Callers de `calcCumulativeCostByYear`**
+- Pasar `inflationRate` desde los componentes que llaman esta función (`InterestBarChart`, `Index`, `SharedOperation`, etc.).
 
