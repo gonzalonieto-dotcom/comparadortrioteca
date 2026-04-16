@@ -1,5 +1,5 @@
 import { ComputedOffer } from "@/lib/mortgageCalc";
-import { Offer, operationDefaults } from "@/data/mortgageData";
+import { Offer } from "@/data/mortgageData";
 import { Badge } from "@/components/ui/badge";
 import {
   Tooltip,
@@ -17,7 +17,7 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
-import { Info, Star, ArrowRight, ShieldCheck, Trash2 } from "lucide-react";
+import { Info, Star, ArrowRight, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { InfoTooltip } from "@/components/InfoTooltip";
