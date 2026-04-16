@@ -3,6 +3,9 @@ project_id = "cnlpnazvbyjnaecpsbsq"
 [functions.fetch-euribor]
 verify_jwt = false
 
+[functions.fetch-inflation]
+verify_jwt = false
+
 [functions.parse-offer-pdf]
 verify_jwt = false
 
