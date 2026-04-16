@@ -19,6 +19,7 @@ interface InterestBarChartProps {
   defaults: OperationDefaults;
   partialPayments: PartialPayment[];
   onPartialPaymentsChange: (payments: PartialPayment[]) => void;
+  inflationRate?: number;
 }
 
 const fmt = (n: number) =>
@@ -65,13 +66,13 @@ const StackedBarTab = ({ computedOffers, recommendedId }: { computedOffers: Comp
 };
 
 /* ——— Tab 2: Breakeven (supports partial payments) ——— */
-const BreakevenTab = ({ computedOffers, defaults, partialPayments }: { computedOffers: ComputedOffer[]; defaults: OperationDefaults; partialPayments: PartialPayment[] }) => {
+const BreakevenTab = ({ computedOffers, defaults, partialPayments, inflationRate }: { computedOffers: ComputedOffer[]; defaults: OperationDefaults; partialPayments: PartialPayment[]; inflationRate?: number }) => {
   const hasPayments = partialPayments.length > 0 && partialPayments.some(p => p.amount > 0);
   const hasMixed = computedOffers.some((co) => co.offer.type === "Mixto");
 
   const data = useMemo(() => {
     if (!hasPayments) {
-      return calcCumulativeCostByYear(computedOffers, defaults);
+      return calcCumulativeCostByYear(computedOffers, defaults, inflationRate);
     }
 
     // Recalculate with partial payments — simulate full term once per offer,
@@ -372,7 +373,7 @@ const PartialPaymentTab = ({ computedOffers, defaults, partialPayments, onPartia
 };
 
 /* ——— Main component ——— */
-const InterestBarChart = ({ computedOffers, recommendedId, defaults, partialPayments, onPartialPaymentsChange }: InterestBarChartProps) => {
+const InterestBarChart = ({ computedOffers, recommendedId, defaults, partialPayments, onPartialPaymentsChange, inflationRate }: InterestBarChartProps) => {
   return (
     <div className="bg-card rounded-xl border p-5">
       <Tabs defaultValue="total" className="w-full">
@@ -396,7 +397,7 @@ const InterestBarChart = ({ computedOffers, recommendedId, defaults, partialPaym
           <StackedBarTab computedOffers={computedOffers} recommendedId={recommendedId} />
         </TabsContent>
         <TabsContent value="breakeven">
-          <BreakevenTab computedOffers={computedOffers} defaults={defaults} partialPayments={partialPayments} />
+          <BreakevenTab computedOffers={computedOffers} defaults={defaults} partialPayments={partialPayments} inflationRate={inflationRate} />
         </TabsContent>
         <TabsContent value="partial">
           <PartialPaymentTab computedOffers={computedOffers} defaults={defaults} partialPayments={partialPayments} onPartialPaymentsChange={onPartialPaymentsChange} />

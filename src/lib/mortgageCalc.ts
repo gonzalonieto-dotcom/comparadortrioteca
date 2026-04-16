@@ -251,11 +251,10 @@ export function computeOffer(offer: Offer, defaults: OperationDefaults, inflatio
     }
   }
 
-  // Calculate insurance cost with inflation separately for display
+  // Insurance cost with inflation = difference between inflated and non-inflated linkage cost
   let insuranceCostWithInflation: number | undefined;
   if (inflationRate && inflationRate > 0) {
-    const withoutInflation = calcTotalLinkageCost(offer, effectiveTermYears, 0);
-    insuranceCostWithInflation = totalLinkageCost - withoutInflation + withoutInflation;
+    insuranceCostWithInflation = totalLinkageCost;
   }
 
   return {
@@ -282,8 +281,10 @@ export interface YearlyCumulativeCost {
 
 export function calcCumulativeCostByYear(
   computedOffers: ComputedOffer[],
-  defaults: OperationDefaults
+  defaults: OperationDefaults,
+  inflationRate?: number
 ): YearlyCumulativeCost[] {
+  const inf = (inflationRate ?? 0) / 100;
   const years: YearlyCumulativeCost[] = [];
   for (let y = 1; y <= defaults.termYears; y++) {
     const row: YearlyCumulativeCost = { year: y };
@@ -291,7 +292,11 @@ export function calcCumulativeCostByYear(
       const interestToYear = co.schedule
         .filter((r) => r.year <= y)
         .reduce((s, r) => s + r.interest, 0);
-      const linkageCostToYear = co.annualLinkageCost * y;
+      // Compound inflation on annual linkage costs
+      let linkageCostToYear = 0;
+      for (let i = 0; i < y; i++) {
+        linkageCostToYear += co.annualLinkageCost * Math.pow(1 + inf, i);
+      }
       const otherCostsToYear =
         co.offer.upfrontCostsEUR +
         defaults.appraisalCostEUR +
