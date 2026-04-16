@@ -41,25 +41,6 @@ const fmt = (n: number) =>
 const fmtDec = (n: number) =>
   new Intl.NumberFormat("es-ES", { style: "currency", currency: "EUR", minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n);
 
-const InsuranceBasis = () => (
-  <div className="text-xs space-y-2 max-w-xs">
-    <div className="flex items-center gap-1.5 font-medium text-card-foreground">
-      <ShieldCheck className="h-3.5 w-3.5 text-primary" />
-      Base de cálculo de bonificaciones
-    </div>
-    <p className="text-muted-foreground leading-relaxed">
-      <strong>Seguro de vida:</strong> {fmtDec(operationDefaults.lifeInsuranceAnnualDefault)}/año, estimado para un perfil
-      estándar (edad 30-45 años, no fumador) con un capital asegurado de {fmt(operationDefaults.loanAmount)}.
-    </p>
-    <p className="text-muted-foreground leading-relaxed">
-      <strong>Seguro de hogar:</strong> {fmtDec(operationDefaults.homeInsuranceAnnualDefault)}/año, calculado para una vivienda
-      con tasación de {fmt(operationDefaults.appraisalValue)}, acorde al préstamo solicitado.
-    </p>
-    <p className="text-muted-foreground/70 italic">
-      Los importes son orientativos y pueden variar según las condiciones de la póliza.
-    </p>
-  </div>
-);
 
 const InlineLinkages = ({ offer, onToggle }: { offer: Offer; onToggle: (lid: string) => void }) => (
   <div className="space-y-1.5">
@@ -95,7 +76,6 @@ const InlineLinkages = ({ offer, onToggle }: { offer: Offer; onToggle: (lid: str
             </li>
           ))}
         </ul>
-        <InsuranceBasis />
       </PopoverContent>
     </Popover>
   </div>
@@ -116,7 +96,14 @@ const MonthlyWithInsurance = ({ co }: { co: ComputedOffer }) => {
             </button>
           </PopoverTrigger>
           <PopoverContent className="w-72 p-3" align="end">
-            <InsuranceBasis />
+            <ul className="space-y-1.5 text-xs">
+              {co.offer.linkages.filter(l => l.isActive && l.annualCostEUR > 0).map(l => (
+                <li key={l.id} className="flex justify-between">
+                  <span className="text-muted-foreground">{l.label}</span>
+                  <span className="font-medium">{fmtDec(l.annualCostEUR)}/año</span>
+                </li>
+              ))}
+            </ul>
           </PopoverContent>
         </Popover>
       )}
