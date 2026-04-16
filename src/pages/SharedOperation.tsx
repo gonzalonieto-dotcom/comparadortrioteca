@@ -213,7 +213,7 @@ const SharedOperation = () => {
             </div>
             <CostBreakdown computedOffers={computedOffers} inflationRate={inflationRate} />
             <div className="mt-4">
-              <InterestBarChart computedOffers={computedOffers} recommendedId={recommended?.offer.id} defaults={defaults} partialPayments={partialPayments} onPartialPaymentsChange={setPartialPayments} />
+              <InterestBarChart computedOffers={computedOffers} recommendedId={recommended?.offer.id} defaults={defaults} partialPayments={partialPayments} onPartialPaymentsChange={setPartialPayments} inflationRate={inflationRate} />
             </div>
           </section>
 
