@@ -50,6 +50,24 @@ export type Database = {
         }
         Relationships: []
       }
+      cached_rates: {
+        Row: {
+          fetched_at: string
+          key: string
+          value: number
+        }
+        Insert: {
+          fetched_at?: string
+          key: string
+          value: number
+        }
+        Update: {
+          fetched_at?: string
+          key?: string
+          value?: number
+        }
+        Relationships: []
+      }
       client_interests: {
         Row: {
           bank_name: string
