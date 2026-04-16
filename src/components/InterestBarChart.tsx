@@ -19,6 +19,7 @@ interface InterestBarChartProps {
   defaults: OperationDefaults;
   partialPayments: PartialPayment[];
   onPartialPaymentsChange: (payments: PartialPayment[]) => void;
+  inflationRate?: number;
 }
 
 const fmt = (n: number) =>

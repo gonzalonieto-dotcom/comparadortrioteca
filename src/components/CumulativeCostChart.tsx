@@ -5,6 +5,7 @@ import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 interface CumulativeCostChartProps {
   computedOffers: ComputedOffer[];
   defaults: OperationDefaults;
+  inflationRate?: number;
 }
 
 const fmt = (n: number) =>
@@ -17,8 +18,8 @@ const COLORS: Record<string, string> = {
   ibercaja: "hsl(340, 75%, 45%)",
 };
 
-const CumulativeCostChart = ({ computedOffers, defaults }: CumulativeCostChartProps) => {
-  const data = calcCumulativeCostByYear(computedOffers, defaults);
+const CumulativeCostChart = ({ computedOffers, defaults, inflationRate }: CumulativeCostChartProps) => {
+  const data = calcCumulativeCostByYear(computedOffers, defaults, inflationRate);
 
   return (
     <div className="bg-card rounded-xl border p-6">
