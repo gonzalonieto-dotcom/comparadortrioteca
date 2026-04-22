@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Trash2, ChevronDown, ChevronUp, Calculator } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 
 import { toast } from "sonner";
@@ -111,6 +112,7 @@ const OfferEditor = ({ offer, index, onChange, onDelete, loanAmount, termYears, 
   const [expandedLocal, setExpandedLocal] = useState(true);
   const expanded = expandedProp !== undefined ? expandedProp : expandedLocal;
   const toggleExpanded = onToggle || (() => setExpandedLocal(!expandedLocal));
+  const [syncMixed, setSyncMixed] = useState(true);
 
   const update = (patch: Partial<OfferFormData>) => {
     const updated = { ...offer, ...patch };
@@ -122,8 +124,8 @@ const OfferEditor = ({ offer, index, onChange, onDelete, loanAmount, termYears, 
         { from_year: 11, to_year: years, fixed_tin: null, spread_over_euribor: 0.90 },
       ];
     }
-    // Sync general fields → mixed periods (only for Mixto type with existing periods)
-    if (updated.type === "Mixto" && updated.mixedPeriods.length > 0) {
+    // Sync general fields → mixed periods (only when toggle enabled and Mixto with periods)
+    if (syncMixed && updated.type === "Mixto" && updated.mixedPeriods.length > 0) {
       let periods = updated.mixedPeriods;
       // Sync base_tin → first fixed-tin period
       if (patch.base_tin !== undefined) {
@@ -348,12 +350,23 @@ const OfferEditor = ({ offer, index, onChange, onDelete, loanAmount, termYears, 
 
             {/* Mixed periods (only for Mixto type) */}
             {offer.type === "Mixto" && (
-              <MixedPeriodEditor
-                periods={offer.mixedPeriods}
-                onChange={(mixedPeriods) => update({ mixedPeriods })}
-                suggestedFixedTIN={offer.base_tin}
-                suggestedTermYears={offer.term_years_override ?? termYears ?? 30}
-              />
+              <div className="space-y-2">
+                <div className="flex items-center justify-between rounded-md border bg-muted/30 px-3 py-2">
+                  <div className="flex flex-col">
+                    <Label className="text-xs font-medium">Sincronizar con campos generales</Label>
+                    <span className="text-[10px] text-muted-foreground">
+                      Propaga TIN bonificado y plazo al primer/último tramo automáticamente
+                    </span>
+                  </div>
+                  <Switch checked={syncMixed} onCheckedChange={setSyncMixed} />
+                </div>
+                <MixedPeriodEditor
+                  periods={offer.mixedPeriods}
+                  onChange={(mixedPeriods) => update({ mixedPeriods })}
+                  suggestedFixedTIN={syncMixed ? offer.base_tin : undefined}
+                  suggestedTermYears={syncMixed ? (offer.term_years_override ?? termYears ?? 30) : undefined}
+                />
+              </div>
             )}
 
             {/* Bonificaciones (collapsible dentro del formulario) */}
