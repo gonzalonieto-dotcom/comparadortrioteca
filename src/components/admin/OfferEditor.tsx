@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Trash2, ChevronDown, ChevronUp, Calculator } from "lucide-react";
+import { AlertTriangle } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 
@@ -167,7 +168,7 @@ const OfferEditor = ({ offer, index, onChange, onDelete, loanAmount, termYears, 
   };
 
   // ─── Auto-computed TAE, payment & period breakdown ───
-  const { computedTAE, computedPayment, periodBreakdown } = useMemo(() => {
+  const { computedTAE, computedPayment, periodBreakdown, mixedMismatch } = useMemo(() => {
     const loan = loanAmount || 200000;
     const years = offer.term_years_override ?? termYears ?? 30;
     const termMonths = years * 12;
@@ -191,7 +192,19 @@ const OfferEditor = ({ offer, index, onChange, onDelete, loanAmount, termYears, 
     const tae = calcEstimatedTAE(calcOffer, defaults, schedule);
     const breakdown = calcPeriodBreakdown(calcOffer, schedule);
 
-    return { computedTAE: tae, computedPayment: payment, periodBreakdown: breakdown };
+    // Cross-validation: for Mixto, the TIN bonificado entered in the general
+    // field (base_tin) must match the rate the engine uses for the first fixed
+    // tranche. If they diverge (e.g. user toggled off sync and edited periods
+    // manually), surface a warning with the expected value.
+    let mismatch: { expected: number; actual: number } | null = null;
+    if (offer.type === "Mixto" && breakdown.length > 0) {
+      const firstFixed = breakdown.find((pb) => !pb.isVariable);
+      if (firstFixed && Math.abs(firstFixed.rate - offer.base_tin) > 0.005) {
+        mismatch = { expected: firstFixed.rate, actual: offer.base_tin };
+      }
+    }
+
+    return { computedTAE: tae, computedPayment: payment, periodBreakdown: breakdown, mixedMismatch: mismatch };
   }, [offer, loanAmount, termYears, appraisalCost]);
 
   return (
@@ -255,6 +268,22 @@ const OfferEditor = ({ offer, index, onChange, onDelete, loanAmount, termYears, 
                   {offer.type === "Mixto" ? "TIN bonificado primer tramo %" : "TIN bonificado %"}
                 </Label>
                 <Input type="number" step="0.01" value={offer.base_tin} onFocus={(e) => e.target.select()} onChange={(e) => update({ base_tin: +e.target.value })} />
+                {mixedMismatch && (
+                  <div className="mt-1 flex items-start gap-1.5 rounded-md border border-destructive/40 bg-destructive/5 px-2 py-1.5 text-[11px] text-destructive">
+                    <AlertTriangle className="mt-0.5 h-3 w-3 shrink-0" />
+                    <div className="leading-tight">
+                      No coincide con el motor: el primer tramo fijo se está calculando al{" "}
+                      <strong>{mixedMismatch.expected.toFixed(2)}%</strong>.
+                      <button
+                        type="button"
+                        className="ml-1 underline underline-offset-2 hover:no-underline"
+                        onClick={() => update({ base_tin: +mixedMismatch.expected.toFixed(2) })}
+                      >
+                        Igualar
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
               <div>
                 <Label className="text-xs">Plazo (años)</Label>
