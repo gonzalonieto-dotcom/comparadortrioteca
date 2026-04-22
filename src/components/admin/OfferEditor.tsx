@@ -268,6 +268,22 @@ const OfferEditor = ({ offer, index, onChange, onDelete, loanAmount, termYears, 
                   {offer.type === "Mixto" ? "TIN bonificado primer tramo %" : "TIN bonificado %"}
                 </Label>
                 <Input type="number" step="0.01" value={offer.base_tin} onFocus={(e) => e.target.select()} onChange={(e) => update({ base_tin: +e.target.value })} />
+                {mixedMismatch && (
+                  <div className="mt-1 flex items-start gap-1.5 rounded-md border border-destructive/40 bg-destructive/5 px-2 py-1.5 text-[11px] text-destructive">
+                    <AlertTriangle className="mt-0.5 h-3 w-3 shrink-0" />
+                    <div className="leading-tight">
+                      No coincide con el motor: el primer tramo fijo se está calculando al{" "}
+                      <strong>{mixedMismatch.expected.toFixed(2)}%</strong>.
+                      <button
+                        type="button"
+                        className="ml-1 underline underline-offset-2 hover:no-underline"
+                        onClick={() => update({ base_tin: +mixedMismatch.expected.toFixed(2) })}
+                      >
+                        Igualar
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
               <div>
                 <Label className="text-xs">Plazo (años)</Label>
