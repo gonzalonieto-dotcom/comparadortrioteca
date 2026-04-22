@@ -79,7 +79,10 @@ function toCalcOffer(f: OfferFormData): Offer {
     ? f.mixedPeriods.map((m) => ({
         fromYear: m.from_year,
         toYear: m.to_year,
-        fixedTIN: m.fixed_tin ?? undefined,
+        // The form stores fixed_tin as the BONIFIED TIN (consistent with base_tin).
+        // The calc engine subtracts active linkage discounts in getAnnualRateForMonth,
+        // so we re-add them here to keep the displayed bonified value after the discount.
+        fixedTIN: m.fixed_tin != null ? m.fixed_tin + totalDiscount : undefined,
         spreadOverEuribor: m.spread_over_euribor ?? undefined,
       }))
     : undefined;
