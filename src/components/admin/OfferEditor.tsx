@@ -122,6 +122,28 @@ const OfferEditor = ({ offer, index, onChange, onDelete, loanAmount, termYears, 
         { from_year: 11, to_year: years, fixed_tin: null, spread_over_euribor: 0.90 },
       ];
     }
+    // Sync general fields → mixed periods (only for Mixto type with existing periods)
+    if (updated.type === "Mixto" && updated.mixedPeriods.length > 0) {
+      let periods = updated.mixedPeriods;
+      // Sync base_tin → first fixed-tin period
+      if (patch.base_tin !== undefined) {
+        const firstFixedIdx = periods.findIndex((p) => p.fixed_tin !== null);
+        if (firstFixedIdx !== -1) {
+          periods = periods.map((p, i) =>
+            i === firstFixedIdx ? { ...p, fixed_tin: updated.base_tin } : p
+          );
+        }
+      }
+      // Sync term_years_override → to_year of last period
+      if (patch.term_years_override !== undefined) {
+        const newYears = updated.term_years_override ?? termYears ?? 30;
+        const lastIdx = periods.length - 1;
+        periods = periods.map((p, i) =>
+          i === lastIdx ? { ...p, to_year: newYears } : p
+        );
+      }
+      updated.mixedPeriods = periods;
+    }
     onChange(updated);
   };
 
