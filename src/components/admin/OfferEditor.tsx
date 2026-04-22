@@ -350,12 +350,23 @@ const OfferEditor = ({ offer, index, onChange, onDelete, loanAmount, termYears, 
 
             {/* Mixed periods (only for Mixto type) */}
             {offer.type === "Mixto" && (
-              <MixedPeriodEditor
-                periods={offer.mixedPeriods}
-                onChange={(mixedPeriods) => update({ mixedPeriods })}
-                suggestedFixedTIN={offer.base_tin}
-                suggestedTermYears={offer.term_years_override ?? termYears ?? 30}
-              />
+              <div className="space-y-2">
+                <div className="flex items-center justify-between rounded-md border bg-muted/30 px-3 py-2">
+                  <div className="flex flex-col">
+                    <Label className="text-xs font-medium">Sincronizar con campos generales</Label>
+                    <span className="text-[10px] text-muted-foreground">
+                      Propaga TIN bonificado y plazo al primer/último tramo automáticamente
+                    </span>
+                  </div>
+                  <Switch checked={syncMixed} onCheckedChange={setSyncMixed} />
+                </div>
+                <MixedPeriodEditor
+                  periods={offer.mixedPeriods}
+                  onChange={(mixedPeriods) => update({ mixedPeriods })}
+                  suggestedFixedTIN={syncMixed ? offer.base_tin : undefined}
+                  suggestedTermYears={syncMixed ? (offer.term_years_override ?? termYears ?? 30) : undefined}
+                />
+              </div>
             )}
 
             {/* Bonificaciones (collapsible dentro del formulario) */}
