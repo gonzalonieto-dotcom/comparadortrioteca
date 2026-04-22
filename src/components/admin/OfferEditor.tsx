@@ -168,7 +168,7 @@ const OfferEditor = ({ offer, index, onChange, onDelete, loanAmount, termYears, 
   };
 
   // ─── Auto-computed TAE, payment & period breakdown ───
-  const { computedTAE, computedPayment, periodBreakdown } = useMemo(() => {
+  const { computedTAE, computedPayment, periodBreakdown, mixedMismatch } = useMemo(() => {
     const loan = loanAmount || 200000;
     const years = offer.term_years_override ?? termYears ?? 30;
     const termMonths = years * 12;
@@ -192,7 +192,19 @@ const OfferEditor = ({ offer, index, onChange, onDelete, loanAmount, termYears, 
     const tae = calcEstimatedTAE(calcOffer, defaults, schedule);
     const breakdown = calcPeriodBreakdown(calcOffer, schedule);
 
-    return { computedTAE: tae, computedPayment: payment, periodBreakdown: breakdown };
+    // Cross-validation: for Mixto, the TIN bonificado entered in the general
+    // field (base_tin) must match the rate the engine uses for the first fixed
+    // tranche. If they diverge (e.g. user toggled off sync and edited periods
+    // manually), surface a warning with the expected value.
+    let mismatch: { expected: number; actual: number } | null = null;
+    if (offer.type === "Mixto" && breakdown.length > 0) {
+      const firstFixed = breakdown.find((pb) => !pb.isVariable);
+      if (firstFixed && Math.abs(firstFixed.rate - offer.base_tin) > 0.005) {
+        mismatch = { expected: firstFixed.rate, actual: offer.base_tin };
+      }
+    }
+
+    return { computedTAE: tae, computedPayment: payment, periodBreakdown: breakdown, mixedMismatch: mismatch };
   }, [offer, loanAmount, termYears, appraisalCost]);
 
   return (
