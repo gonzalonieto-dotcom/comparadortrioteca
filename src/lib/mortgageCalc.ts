@@ -184,10 +184,6 @@ export interface PeriodBreakdown {
 export function calcPeriodBreakdown(offer: Offer, schedule: AmortizationRow[]): PeriodBreakdown[] {
   if (!offer.mixedPeriods || offer.mixedPeriods.length === 0) return [];
 
-  const totalDiscount = offer.linkages
-    .filter((l) => l.isActive)
-    .reduce((sum, l) => sum + l.discountWeightPct, 0);
-
   return offer.mixedPeriods.map((period) => {
     const rows = schedule.filter((r) => r.year >= period.fromYear && r.year <= period.toYear);
     const totalInterest = rows.reduce((s, r) => s + r.interest, 0);
@@ -195,7 +191,7 @@ export function calcPeriodBreakdown(offer: Offer, schedule: AmortizationRow[]): 
     const isVariable = period.spreadOverEuribor !== undefined;
     const rate = isVariable
       ? (offer.euriborRate ?? 2.45) + period.spreadOverEuribor!
-      : Math.max((period.fixedTIN ?? 0) - totalDiscount, 0.01);
+      : Math.max(period.fixedTIN ?? 0, 0.01);
 
     return {
       label: isVariable
