@@ -75,6 +75,9 @@ function toCalcOffer(f: OfferFormData): Offer {
     discountWeightPct: l.discount_weight_pct,
     annualCostEUR: l.annual_cost,
   }));
+  const totalDiscount = linkages
+    .filter((l) => l.isActive)
+    .reduce((s, l) => s + l.discountWeightPct, 0);
   const mixedPeriods: MixedRatePeriod[] | undefined = f.mixedPeriods.length > 0
     ? f.mixedPeriods.map((m) => ({
         fromYear: m.from_year,
@@ -86,10 +89,6 @@ function toCalcOffer(f: OfferFormData): Offer {
         spreadOverEuribor: m.spread_over_euribor ?? undefined,
       }))
     : undefined;
-
-  const totalDiscount = linkages
-    .filter((l) => l.isActive)
-    .reduce((s, l) => s + l.discountWeightPct, 0);
 
   return {
     id: f.id || "temp",
