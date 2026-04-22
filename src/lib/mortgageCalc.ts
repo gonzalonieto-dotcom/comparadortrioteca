@@ -34,10 +34,10 @@ function getAnnualRateForMonth(offer: Offer, month: number, bonifiedTIN: number)
   for (const period of offer.mixedPeriods) {
     if (year >= period.fromYear && year <= period.toYear) {
       if (period.fixedTIN !== undefined) {
-        const totalDiscount = offer.linkages
-          .filter((l) => l.isActive)
-          .reduce((sum, l) => sum + l.discountWeightPct, 0);
-        return Math.max(period.fixedTIN - totalDiscount, 0.01);
+        // fixedTIN is stored as the BONIFIED TIN already (consistent with the
+        // way the manager inputs it via base_tin). Do NOT subtract linkage
+        // discounts again here.
+        return Math.max(period.fixedTIN, 0.01);
       }
       if (period.spreadOverEuribor !== undefined) {
         const euribor = offer.euriborRate ?? 2.45;
