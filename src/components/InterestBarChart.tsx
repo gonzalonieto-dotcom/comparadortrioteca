@@ -105,8 +105,8 @@ const BreakevenTab = ({ computedOffers, defaults, partialPayments, inflationRate
           for (const period of offer.mixedPeriods) {
             if (yr >= period.fromYear && yr <= period.toYear) {
               if (period.fixedTIN !== undefined) {
-                const disc = offer.linkages.filter(l => l.isActive).reduce((s, l) => s + l.discountWeightPct, 0);
-                rate = Math.max(period.fixedTIN - disc, 0.01);
+                // fixedTIN is the bonified TIN; do not subtract linkages again.
+                rate = Math.max(period.fixedTIN, 0.01);
               } else if (period.spreadOverEuribor !== undefined) {
                 rate = Math.max((offer.euriborRate ?? 2.45) + period.spreadOverEuribor, 0.01);
               }
@@ -243,8 +243,8 @@ const PartialPaymentTab = ({ computedOffers, defaults, partialPayments, onPartia
           for (const period of offer.mixedPeriods) {
             if (year >= period.fromYear && year <= period.toYear) {
               if (period.fixedTIN !== undefined) {
-                const totalDiscount = offer.linkages.filter((l) => l.isActive).reduce((s, l) => s + l.discountWeightPct, 0);
-                rate = Math.max(period.fixedTIN - totalDiscount, 0.01);
+                // fixedTIN is the bonified TIN; do not subtract linkages again.
+                rate = Math.max(period.fixedTIN, 0.01);
               } else if (period.spreadOverEuribor !== undefined) {
                 rate = Math.max((offer.euriborRate ?? 2.45) + period.spreadOverEuribor, 0.01);
               }
