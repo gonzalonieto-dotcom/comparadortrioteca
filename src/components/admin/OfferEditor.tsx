@@ -112,6 +112,7 @@ const OfferEditor = ({ offer, index, onChange, onDelete, loanAmount, termYears, 
   const [expandedLocal, setExpandedLocal] = useState(true);
   const expanded = expandedProp !== undefined ? expandedProp : expandedLocal;
   const toggleExpanded = onToggle || (() => setExpandedLocal(!expandedLocal));
+  const [syncMixed, setSyncMixed] = useState(true);
 
   const update = (patch: Partial<OfferFormData>) => {
     const updated = { ...offer, ...patch };
@@ -123,8 +124,8 @@ const OfferEditor = ({ offer, index, onChange, onDelete, loanAmount, termYears, 
         { from_year: 11, to_year: years, fixed_tin: null, spread_over_euribor: 0.90 },
       ];
     }
-    // Sync general fields → mixed periods (only for Mixto type with existing periods)
-    if (updated.type === "Mixto" && updated.mixedPeriods.length > 0) {
+    // Sync general fields → mixed periods (only when toggle enabled and Mixto with periods)
+    if (syncMixed && updated.type === "Mixto" && updated.mixedPeriods.length > 0) {
       let periods = updated.mixedPeriods;
       // Sync base_tin → first fixed-tin period
       if (patch.base_tin !== undefined) {
