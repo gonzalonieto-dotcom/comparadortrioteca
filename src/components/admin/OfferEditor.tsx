@@ -75,20 +75,18 @@ function toCalcOffer(f: OfferFormData): Offer {
     discountWeightPct: l.discount_weight_pct,
     annualCostEUR: l.annual_cost,
   }));
-  const totalDiscount = linkages
-    .filter((l) => l.isActive)
-    .reduce((s, l) => s + l.discountWeightPct, 0);
   const mixedPeriods: MixedRatePeriod[] | undefined = f.mixedPeriods.length > 0
     ? f.mixedPeriods.map((m) => ({
         fromYear: m.from_year,
         toYear: m.to_year,
-        // The form stores fixed_tin as the BONIFIED TIN (consistent with base_tin).
-        // The calc engine subtracts active linkage discounts in getAnnualRateForMonth,
-        // so we re-add them here to keep the displayed bonified value after the discount.
-        fixedTIN: m.fixed_tin != null ? m.fixed_tin + totalDiscount : undefined,
+        fixedTIN: m.fixed_tin ?? undefined,
         spreadOverEuribor: m.spread_over_euribor ?? undefined,
       }))
     : undefined;
+
+  const totalDiscount = linkages
+    .filter((l) => l.isActive)
+    .reduce((s, l) => s + l.discountWeightPct, 0);
 
   return {
     id: f.id || "temp",
