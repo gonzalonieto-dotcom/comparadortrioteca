@@ -26,20 +26,22 @@ const fmt = (n: number) =>
   new Intl.NumberFormat("es-ES", { style: "currency", currency: "EUR", maximumFractionDigits: 0 }).format(n);
 
 /* ——— Tab 1: Stacked bar ——— */
-const StackedBarTab = ({ computedOffers, recommendedId }: { computedOffers: ComputedOffer[]; recommendedId?: string }) => {
+const StackedBarTab = ({ computedOffers, recommendedId, inflationRate }: { computedOffers: ComputedOffer[]; recommendedId?: string; inflationRate?: number }) => {
   const sorted = [...computedOffers].sort((a, b) => a.totalInterest - b.totalInterest);
   const data = sorted.map((co) => ({
     name: co.offer.bankName.split(" ").pop(),
     fullName: co.offer.bankName,
     interest: co.totalInterest,
-    bonifications: co.totalLinkageCost,
+    bonifications: co.totalLinkageCost + (co.totalInsuranceCost ?? 0),
     color: co.offer.id === recommendedId ? "hsl(var(--primary))" : co.offer.logoColor,
   }));
+
+  const hasInflation = (inflationRate ?? 0) > 0;
 
   return (
     <>
       <p className="text-xs text-muted-foreground mb-4">
-        Barra oscura = intereses · Barra clara = coste de bonificaciones
+        Barra oscura = intereses · Barra clara = coste de bonificaciones + seguros{hasInflation ? ` (ajustados por inflación ${inflationRate?.toFixed(1)}%)` : ""}
       </p>
       <div className="h-52">
         <ResponsiveContainer width="100%" height="100%">
@@ -48,14 +50,14 @@ const StackedBarTab = ({ computedOffers, recommendedId }: { computedOffers: Comp
             <XAxis type="number" tickFormatter={(v) => `${(v / 1000).toFixed(0)}k €`} tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} axisLine={false} tickLine={false} />
             <YAxis type="category" dataKey="name" tick={{ fontSize: 12, fill: "hsl(var(--card-foreground))", fontWeight: 500 }} axisLine={false} tickLine={false} width={80} />
             <RTooltip
-              formatter={(value: number, name: string) => [fmt(value), name === "Intereses" ? "Intereses totales" : "Coste de bonificaciones"]}
+              formatter={(value: number, name: string) => [fmt(value), name === "Intereses" ? "Intereses totales" : "Bonificaciones + seguros"]}
               labelFormatter={(l) => data.find((d) => d.name === l)?.fullName ?? l}
               contentStyle={{ backgroundColor: "hsl(var(--popover))", border: "1px solid hsl(var(--border))", borderRadius: "0.5rem", fontSize: "0.8rem" }}
             />
             <Bar dataKey="interest" stackId="a" radius={[0, 0, 0, 0]} barSize={24} name="Intereses">
               {data.map((entry, index) => <Cell key={index} fill={entry.color} />)}
             </Bar>
-            <Bar dataKey="bonifications" stackId="a" radius={[0, 6, 6, 0]} barSize={24} name="Bonificaciones">
+            <Bar dataKey="bonifications" stackId="a" radius={[0, 6, 6, 0]} barSize={24} name="Bonificaciones + seguros">
               {data.map((entry, index) => <Cell key={index} fill={entry.color} fillOpacity={0.3} />)}
             </Bar>
           </BarChart>
