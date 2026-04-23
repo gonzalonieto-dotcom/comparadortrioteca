@@ -6,16 +6,14 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Trash2, ChevronDown, ChevronUp, Calculator } from "lucide-react";
-import { AlertTriangle } from "lucide-react";
-import { Switch } from "@/components/ui/switch";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 
 import { toast } from "sonner";
 import LinkageEditor, { type LinkageFormData, PRESET_LINKAGES } from "./LinkageEditor";
 import PdfDropZone from "./PdfDropZone";
-import MixedPeriodEditor, { type MixedPeriodFormData } from "./MixedPeriodEditor";
+import type { MixedPeriodFormData } from "./MixedPeriodEditor";
 import type { Offer, OperationDefaults, Linkage, MixedRatePeriod } from "@/data/mortgageData";
-import { calcMonthlyPayment, calcEstimatedTAE, generateAmortizationSchedule, calcBonifiedTIN, calcPeriodBreakdown } from "@/lib/mortgageCalc";
+import { calcMonthlyPayment, calcEstimatedTAE, generateAmortizationSchedule, calcBonifiedTIN } from "@/lib/mortgageCalc";
 import { BankLogo } from "@/lib/bankLogos";
 
 export const BANK_PRESETS: Record<string, { color: string }> = {
@@ -113,39 +111,41 @@ const OfferEditor = ({ offer, index, onChange, onDelete, loanAmount, termYears, 
   const [expandedLocal, setExpandedLocal] = useState(true);
   const expanded = expandedProp !== undefined ? expandedProp : expandedLocal;
   const toggleExpanded = onToggle || (() => setExpandedLocal(!expandedLocal));
-  const [syncMixed, setSyncMixed] = useState(true);
+
+  // Derive number of fixed years for Mixto from existing periods (default 10)
+  const initialFixedYears =
+    offer.type === "Mixto" && offer.mixedPeriods.length > 0
+      ? offer.mixedPeriods.find((p) => p.fixed_tin !== null)?.to_year ?? 10
+      : 10;
+  const [fixedYears, setFixedYears] = useState<number>(initialFixedYears);
+
+  // Build the canonical 2-period structure for Mixto
+  const buildMixedPeriods = (
+    baseTIN: number,
+    fixYears: number,
+    spread: number | null,
+    totalYears: number
+  ): MixedPeriodFormData[] => {
+    const safeFix = Math.max(1, Math.min(fixYears, totalYears - 1));
+    return [
+      { from_year: 1, to_year: safeFix, fixed_tin: baseTIN, spread_over_euribor: null },
+      { from_year: safeFix + 1, to_year: totalYears, fixed_tin: null, spread_over_euribor: spread },
+    ];
+  };
 
   const update = (patch: Partial<OfferFormData>) => {
     const updated = { ...offer, ...patch };
-    // Auto-create default mixed periods when switching to Mixto
-    if (patch.type === "Mixto" && updated.mixedPeriods.length === 0) {
-      const years = updated.term_years_override ?? termYears ?? 30;
-      updated.mixedPeriods = [
-        { from_year: 1, to_year: 10, fixed_tin: updated.base_tin || 1.5, spread_over_euribor: null },
-        { from_year: 11, to_year: years, fixed_tin: null, spread_over_euribor: 0.90 },
-      ];
-    }
-    // Sync general fields → mixed periods (only when toggle enabled and Mixto with periods)
-    if (syncMixed && updated.type === "Mixto" && updated.mixedPeriods.length > 0) {
-      let periods = updated.mixedPeriods;
-      // Sync base_tin → first fixed-tin period
-      if (patch.base_tin !== undefined) {
-        const firstFixedIdx = periods.findIndex((p) => p.fixed_tin !== null);
-        if (firstFixedIdx !== -1) {
-          periods = periods.map((p, i) =>
-            i === firstFixedIdx ? { ...p, fixed_tin: updated.base_tin } : p
-          );
-        }
-      }
-      // Sync term_years_override → to_year of last period
-      if (patch.term_years_override !== undefined) {
-        const newYears = updated.term_years_override ?? termYears ?? 30;
-        const lastIdx = periods.length - 1;
-        periods = periods.map((p, i) =>
-          i === lastIdx ? { ...p, to_year: newYears } : p
-        );
-      }
-      updated.mixedPeriods = periods;
+    // Always rebuild the 2-period structure when working with Mixto so that
+    // base_tin, term and spread stay in sync. The manager only edits these
+    // three values via the general inputs.
+    if (updated.type === "Mixto") {
+      const totalYears = updated.term_years_override ?? termYears ?? 30;
+      const currentSpread =
+        updated.mixedPeriods.find((p) => p.spread_over_euribor !== null)?.spread_over_euribor ?? 0.9;
+      updated.mixedPeriods = buildMixedPeriods(updated.base_tin || 1.5, fixedYears, currentSpread, totalYears);
+    } else if (patch.type && patch.type !== "Mixto") {
+      // Switching away from Mixto → drop mixed periods
+      updated.mixedPeriods = [];
     }
     onChange(updated);
   };
@@ -168,7 +168,7 @@ const OfferEditor = ({ offer, index, onChange, onDelete, loanAmount, termYears, 
   };
 
   // ─── Auto-computed TAE, payment & period breakdown ───
-  const { computedTAE, computedPayment, periodBreakdown, mixedMismatch } = useMemo(() => {
+  const { computedTAE, computedPayment } = useMemo(() => {
     const loan = loanAmount || 200000;
     const years = offer.term_years_override ?? termYears ?? 30;
     const termMonths = years * 12;
@@ -190,21 +190,7 @@ const OfferEditor = ({ offer, index, onChange, onDelete, loanAmount, termYears, 
     const schedule = generateAmortizationSchedule(loan, bonifiedTIN, termMonths, calcOffer);
     const payment = schedule[0]?.payment ?? calcMonthlyPayment(loan, bonifiedTIN, termMonths);
     const tae = calcEstimatedTAE(calcOffer, defaults, schedule);
-    const breakdown = calcPeriodBreakdown(calcOffer, schedule);
-
-    // Cross-validation: for Mixto, the TIN bonificado entered in the general
-    // field (base_tin) must match the rate the engine uses for the first fixed
-    // tranche. If they diverge (e.g. user toggled off sync and edited periods
-    // manually), surface a warning with the expected value.
-    let mismatch: { expected: number; actual: number } | null = null;
-    if (offer.type === "Mixto" && breakdown.length > 0) {
-      const firstFixed = breakdown.find((pb) => !pb.isVariable);
-      if (firstFixed && Math.abs(firstFixed.rate - offer.base_tin) > 0.005) {
-        mismatch = { expected: firstFixed.rate, actual: offer.base_tin };
-      }
-    }
-
-    return { computedTAE: tae, computedPayment: payment, periodBreakdown: breakdown, mixedMismatch: mismatch };
+    return { computedTAE: tae, computedPayment: payment };
   }, [offer, loanAmount, termYears, appraisalCost]);
 
   return (
@@ -268,22 +254,6 @@ const OfferEditor = ({ offer, index, onChange, onDelete, loanAmount, termYears, 
                   {offer.type === "Mixto" ? "TIN bonificado primer tramo %" : "TIN bonificado %"}
                 </Label>
                 <Input type="number" step="0.01" value={offer.base_tin} onFocus={(e) => e.target.select()} onChange={(e) => update({ base_tin: +e.target.value })} />
-                {mixedMismatch && (
-                  <div className="mt-1 flex items-start gap-1.5 rounded-md border border-destructive/40 bg-destructive/5 px-2 py-1.5 text-[11px] text-destructive">
-                    <AlertTriangle className="mt-0.5 h-3 w-3 shrink-0" />
-                    <div className="leading-tight">
-                      No coincide con el motor: el primer tramo fijo se está calculando al{" "}
-                      <strong>{mixedMismatch.expected.toFixed(2)}%</strong>.
-                      <button
-                        type="button"
-                        className="ml-1 underline underline-offset-2 hover:no-underline"
-                        onClick={() => update({ base_tin: +mixedMismatch.expected.toFixed(2) })}
-                      >
-                        Igualar
-                      </button>
-                    </div>
-                  </div>
-                )}
               </div>
               <div>
                 <Label className="text-xs">Plazo (años)</Label>
@@ -314,6 +284,28 @@ const OfferEditor = ({ offer, index, onChange, onDelete, loanAmount, termYears, 
             {offer.type === "Mixto" && (
               <div className="grid grid-cols-2 gap-3">
                 <div>
+                  <Label className="text-xs">Años tramo fijo</Label>
+                  <Input
+                    type="number"
+                    step="1"
+                    min={1}
+                    value={fixedYears}
+                    onFocus={(e) => e.target.select()}
+                    onChange={(e) => {
+                      const next = Math.max(1, +e.target.value || 1);
+                      setFixedYears(next);
+                      const totalYears = offer.term_years_override ?? termYears ?? 30;
+                      const currentSpread =
+                        offer.mixedPeriods.find((p) => p.spread_over_euribor !== null)?.spread_over_euribor ?? 0.9;
+                      onChange({
+                        ...offer,
+                        mixedPeriods: buildMixedPeriods(offer.base_tin || 1.5, next, currentSpread, totalYears),
+                      });
+                    }}
+                    placeholder="10"
+                  />
+                </div>
+                <div>
                   <Label className="text-xs">Diferencial sobre Euríbor %</Label>
                   <Input
                     type="number"
@@ -321,40 +313,15 @@ const OfferEditor = ({ offer, index, onChange, onDelete, loanAmount, termYears, 
                     value={offer.mixedPeriods?.[1]?.spread_over_euribor ?? offer.mixedPeriods?.[0]?.spread_over_euribor ?? ""}
                     onChange={(e) => {
                       const spread = e.target.value ? +e.target.value : null;
-                      const years = offer.term_years_override ?? termYears ?? 30;
-                      let periods = [...offer.mixedPeriods];
-                      if (periods.length >= 2) {
-                        // Update the variable period (second one)
-                        periods = periods.map((p, i) => i === 1 ? { ...p, spread_over_euribor: spread } : p);
-                      } else if (periods.length === 1) {
-                        periods.push({ from_year: 11, to_year: years, fixed_tin: null, spread_over_euribor: spread });
-                      } else {
-                        periods = [
-                          { from_year: 1, to_year: 10, fixed_tin: offer.base_tin, spread_over_euribor: null },
-                          { from_year: 11, to_year: years, fixed_tin: null, spread_over_euribor: spread },
-                        ];
-                      }
-                      update({ mixedPeriods: periods });
+                      const totalYears = offer.term_years_override ?? termYears ?? 30;
+                      onChange({
+                        ...offer,
+                        mixedPeriods: buildMixedPeriods(offer.base_tin || 1.5, fixedYears, spread, totalYears),
+                      });
                     }}
                     placeholder="Ej: 0.75"
                   />
                 </div>
-              </div>
-            )}
-
-            {/* Mixed period breakdown (read-only) */}
-            {offer.type === "Mixto" && periodBreakdown.length > 0 && (
-              <div className="bg-muted/50 rounded-lg p-3 space-y-2">
-                <Label className="text-xs font-medium text-muted-foreground">Desglose por tramo (auto-calculado)</Label>
-                {periodBreakdown.map((pb, i) => (
-                  <div key={i} className="flex items-center justify-between text-xs">
-                    <span className="text-card-foreground">{pb.label}</span>
-                    <div className="flex gap-4">
-                      <span className="text-muted-foreground">TIN: {pb.rate.toFixed(2)}%</span>
-                      <span className="font-medium text-card-foreground">Cuota: {fmt(pb.avgMonthlyPayment)}</span>
-                    </div>
-                  </div>
-                ))}
               </div>
             )}
 
@@ -376,27 +343,6 @@ const OfferEditor = ({ offer, index, onChange, onDelete, loanAmount, termYears, 
                 <Input type="number" step="0.01" value={offer.euribor_rate ?? ""} onChange={(e) => update({ euribor_rate: e.target.value ? +e.target.value : null })} placeholder="Auto" />
               </div>
             </div>
-
-            {/* Mixed periods (only for Mixto type) */}
-            {offer.type === "Mixto" && (
-              <div className="space-y-2">
-                <div className="flex items-center justify-between rounded-md border bg-muted/30 px-3 py-2">
-                  <div className="flex flex-col">
-                    <Label className="text-xs font-medium">Sincronizar con campos generales</Label>
-                    <span className="text-[10px] text-muted-foreground">
-                      Propaga TIN bonificado y plazo al primer/último tramo automáticamente
-                    </span>
-                  </div>
-                  <Switch checked={syncMixed} onCheckedChange={setSyncMixed} />
-                </div>
-                <MixedPeriodEditor
-                  periods={offer.mixedPeriods}
-                  onChange={(mixedPeriods) => update({ mixedPeriods })}
-                  suggestedFixedTIN={syncMixed ? offer.base_tin : undefined}
-                  suggestedTermYears={syncMixed ? (offer.term_years_override ?? termYears ?? 30) : undefined}
-                />
-              </div>
-            )}
 
             {/* Bonificaciones (collapsible dentro del formulario) */}
             <Collapsible>

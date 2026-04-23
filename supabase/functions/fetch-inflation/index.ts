@@ -60,34 +60,72 @@ Deno.serve(async (req) => {
 });
 
 async function scrapeInflation(): Promise<number> {
-  const url = 'https://datosmacro.expansion.com/ipc-paises/espana';
-  const res = await fetch(url, {
-    headers: {
-      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-      'Accept': 'text/html,application/xhtml+xml',
-      'Accept-Language': 'es-ES,es;q=0.9',
-    },
-  });
+  // Try datosmacro first (most reliable for Spain CPI YoY)
+  try {
+    return await scrapeFromDatosmacro();
+  } catch (e) {
+    console.warn('Datosmacro failed, trying INE fallback:', e);
+  }
+  // Fallback to INE (official source)
+  return await scrapeFromINE();
+}
 
-  if (!res.ok) throw new Error(`Page returned ${res.status}`);
+const HEADERS = {
+  'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+  'Accept': 'text/html,application/xhtml+xml',
+  'Accept-Language': 'es-ES,es;q=0.9',
+};
+
+function isPlausible(v: number): boolean {
+  return !isNaN(v) && v >= -5 && v < 30;
+}
+
+async function scrapeFromDatosmacro(): Promise<number> {
+  const url = 'https://datosmacro.expansion.com/ipc-paises/espana';
+  const res = await fetch(url, { headers: HEADERS });
+  if (!res.ok) throw new Error(`datosmacro returned ${res.status}`);
   const html = await res.text();
 
-  const patterns = [
-    /interanual[^]*?(\d+[.,]\d+)\s*%/i,
-    /IPC[^]*?(\d+[.,]\d{1,2})\s*%/i,
-    /Variaci[óo]n\s*anual[^]*?(\d+[.,]\d{1,2})/i,
-    />(\d+[.,]\d{1,2})%?\s*<\/td/i,
-  ];
-
-  for (const pattern of patterns) {
-    const match = html.match(pattern);
-    if (match) {
-      const val = parseFloat(match[1].replace(',', '.'));
-      if (!isNaN(val) && val >= -5 && val < 30) {
-        return val;
-      }
-    }
+  // Strategy: find the most recent row in the main IPC table.
+  // Datosmacro typically renders rows like:
+  //   <td><a>IPC España Marzo 2026</a></td><td>2,6%</td><td>...</td>
+  // We grab the first row (top = most recent) and extract the second cell.
+  const rowMatch = html.match(
+    /IPC\s+Espa[ñn]a[^<]{0,40}<\/a>\s*<\/td>\s*<td[^>]*>\s*(-?\d+[.,]\d{1,2})\s*%/i
+  );
+  if (rowMatch) {
+    const val = parseFloat(rowMatch[1].replace(',', '.'));
+    if (isPlausible(val)) return val;
   }
 
-  throw new Error('Could not extract inflation from page');
+  // Fallback: explicit "Variación anual" label
+  const varMatch = html.match(/Variaci[óo]n\s+anual[^]*?(-?\d+[.,]\d{1,2})\s*%/i);
+  if (varMatch) {
+    const val = parseFloat(varMatch[1].replace(',', '.'));
+    if (isPlausible(val)) return val;
+  }
+
+  throw new Error('Could not extract inflation from datosmacro');
+}
+
+async function scrapeFromINE(): Promise<number> {
+  // INE publishes IPC YoY at this stable resource.
+  const url = 'https://www.ine.es/dyngs/Prensa/IPC.htm';
+  const res = await fetch(url, { headers: HEADERS });
+  if (!res.ok) throw new Error(`INE returned ${res.status}`);
+  const html = await res.text();
+
+  // INE writes things like: "tasa de variación anual ... 2,6%"
+  const patterns = [
+    /variaci[óo]n\s+anual[^%]{0,200}?(-?\d+[.,]\d{1,2})\s*%/i,
+    /IPC[^%]{0,200}?(-?\d+[.,]\d{1,2})\s*%/i,
+  ];
+  for (const p of patterns) {
+    const m = html.match(p);
+    if (m) {
+      const val = parseFloat(m[1].replace(',', '.'));
+      if (isPlausible(val)) return val;
+    }
+  }
+  throw new Error('Could not extract inflation from INE');
 }

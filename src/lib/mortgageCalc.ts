@@ -122,6 +122,22 @@ export function calcAnnualLinkageCost(offer: Offer): number {
   return offer.linkages.filter((l) => l.isActive).reduce((s, l) => s + l.annualCostEUR, 0);
 }
 
+// ─── Operation insurance cost with compound inflation ───
+// Suma anual de los seguros del operativo (vivienda + vida) ajustados por
+// inflación compuesta a lo largo del plazo. Estos seguros viven en la
+// operación, no en cada oferta, por eso se calculan aparte.
+export function calcInsuranceCost(defaults: OperationDefaults, inflationRate?: number): number {
+  const annual = (defaults.homeInsuranceAnnualDefault ?? 0) + (defaults.lifeInsuranceAnnualDefault ?? 0);
+  if (annual <= 0) return 0;
+  const inf = (inflationRate ?? 0) / 100;
+  if (inf <= 0) return annual * defaults.termYears;
+  let total = 0;
+  for (let i = 0; i < defaults.termYears; i++) {
+    total += annual * Math.pow(1 + inf, i);
+  }
+  return total;
+}
+
 // ─── Total cost approx ───
 export function calcTotalCost(
   offer: Offer,
@@ -133,7 +149,8 @@ export function calcTotalCost(
   const totalLinkage = calcTotalLinkageCost(offer, defaults.termYears, inflationRate);
   const termMonths = defaults.termYears * 12;
   const totalAccountCost = offer.monthlyAccountCostEUR * termMonths;
-  return totalInterest + totalLinkage + offer.upfrontCostsEUR + totalAccountCost + defaults.appraisalCostEUR;
+  const totalInsurance = calcInsuranceCost(defaults, inflationRate);
+  return totalInterest + totalLinkage + totalInsurance + offer.upfrontCostsEUR + totalAccountCost + defaults.appraisalCostEUR;
 }
 
 // ─── Estimated TAE via IRR (bisection) ───
@@ -221,6 +238,8 @@ export interface ComputedOffer {
   variableRate?: number;
   periodBreakdown: PeriodBreakdown[];
   insuranceCostWithInflation?: number;
+  insuranceCostNoInflation?: number;
+  totalInsuranceCost?: number;
 }
 
 export function computeOffer(offer: Offer, defaults: OperationDefaults, inflationRate?: number): ComputedOffer {
@@ -247,11 +266,10 @@ export function computeOffer(offer: Offer, defaults: OperationDefaults, inflatio
     }
   }
 
-  // Insurance cost with inflation = difference between inflated and non-inflated linkage cost
-  let insuranceCostWithInflation: number | undefined;
-  if (inflationRate && inflationRate > 0) {
-    insuranceCostWithInflation = totalLinkageCost;
-  }
+  // Operation-level insurance: home + life from defaults, optionally inflated.
+  const totalInsuranceCost = calcInsuranceCost(effectiveDefaults, inflationRate);
+  const insuranceCostNoInflation = calcInsuranceCost(effectiveDefaults, 0);
+  const insuranceCostWithInflation = inflationRate && inflationRate > 0 ? totalInsuranceCost : undefined;
 
   return {
     offer,
@@ -266,6 +284,8 @@ export function computeOffer(offer: Offer, defaults: OperationDefaults, inflatio
     variableRate,
     periodBreakdown,
     insuranceCostWithInflation,
+    insuranceCostNoInflation,
+    totalInsuranceCost,
   };
 }
 
@@ -281,6 +301,7 @@ export function calcCumulativeCostByYear(
   inflationRate?: number
 ): YearlyCumulativeCost[] {
   const inf = (inflationRate ?? 0) / 100;
+  const annualInsurance = (defaults.homeInsuranceAnnualDefault ?? 0) + (defaults.lifeInsuranceAnnualDefault ?? 0);
   const years: YearlyCumulativeCost[] = [];
   for (let y = 1; y <= defaults.termYears; y++) {
     const row: YearlyCumulativeCost = { year: y };
@@ -293,11 +314,16 @@ export function calcCumulativeCostByYear(
       for (let i = 0; i < y; i++) {
         linkageCostToYear += co.annualLinkageCost * Math.pow(1 + inf, i);
       }
+      // Compound inflation on annual operation insurance
+      let insuranceToYear = 0;
+      for (let i = 0; i < y; i++) {
+        insuranceToYear += annualInsurance * Math.pow(1 + inf, i);
+      }
       const otherCostsToYear =
         co.offer.upfrontCostsEUR +
         defaults.appraisalCostEUR +
         co.offer.monthlyAccountCostEUR * y * 12;
-      row[co.offer.id] = interestToYear + linkageCostToYear + otherCostsToYear;
+      row[co.offer.id] = interestToYear + linkageCostToYear + insuranceToYear + otherCostsToYear;
     }
     years.push(row);
   }
