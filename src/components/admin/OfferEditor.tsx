@@ -282,7 +282,7 @@ const OfferEditor = ({ offer, index, onChange, onDelete, loanAmount, termYears, 
 
             {/* Mixto: diferencial sobre Euríbor */}
             {offer.type === "Mixto" && (
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
                 <div>
                   <Label className="text-xs">Años tramo fijo</Label>
                   <Input
@@ -321,6 +321,39 @@ const OfferEditor = ({ offer, index, onChange, onDelete, loanAmount, termYears, 
                     }}
                     placeholder="Ej: 0.75"
                   />
+                </div>
+                <div>
+                  <Label className="text-xs flex items-center gap-1">
+                    TIN tramo variable %
+                    <Calculator className="h-3 w-3 text-muted-foreground" />
+                  </Label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    value={(() => {
+                      const spread = offer.mixedPeriods?.find((p) => p.spread_over_euribor !== null)?.spread_over_euribor;
+                      const eur = offer.euribor_rate ?? 2.45;
+                      if (spread === undefined || spread === null) return "";
+                      return (eur + spread).toFixed(2);
+                    })()}
+                    onFocus={(e) => e.target.select()}
+                    onChange={(e) => {
+                      // Bidireccional: si el gestor escribe el TIN del tramo
+                      // variable, derivamos el diferencial = TIN − Euríbor
+                      const tin = e.target.value ? +e.target.value : null;
+                      const eur = offer.euribor_rate ?? 2.45;
+                      const spread = tin === null ? null : +(tin - eur).toFixed(4);
+                      const totalYears = offer.term_years_override ?? termYears ?? 30;
+                      onChange({
+                        ...offer,
+                        mixedPeriods: buildMixedPeriods(offer.base_tin || 1.5, fixedYears, spread, totalYears),
+                      });
+                    }}
+                    placeholder="Euríbor + diferencial"
+                  />
+                  <p className="text-[10px] text-muted-foreground mt-1">
+                    = Euríbor ({(offer.euribor_rate ?? 2.45).toFixed(2)}%) + diferencial
+                  </p>
                 </div>
               </div>
             )}
