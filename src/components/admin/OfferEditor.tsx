@@ -190,21 +190,7 @@ const OfferEditor = ({ offer, index, onChange, onDelete, loanAmount, termYears, 
     const schedule = generateAmortizationSchedule(loan, bonifiedTIN, termMonths, calcOffer);
     const payment = schedule[0]?.payment ?? calcMonthlyPayment(loan, bonifiedTIN, termMonths);
     const tae = calcEstimatedTAE(calcOffer, defaults, schedule);
-    const breakdown = calcPeriodBreakdown(calcOffer, schedule);
-
-    // Cross-validation: for Mixto, the TIN bonificado entered in the general
-    // field (base_tin) must match the rate the engine uses for the first fixed
-    // tranche. If they diverge (e.g. user toggled off sync and edited periods
-    // manually), surface a warning with the expected value.
-    let mismatch: { expected: number; actual: number } | null = null;
-    if (offer.type === "Mixto" && breakdown.length > 0) {
-      const firstFixed = breakdown.find((pb) => !pb.isVariable);
-      if (firstFixed && Math.abs(firstFixed.rate - offer.base_tin) > 0.005) {
-        mismatch = { expected: firstFixed.rate, actual: offer.base_tin };
-      }
-    }
-
-    return { computedTAE: tae, computedPayment: payment, periodBreakdown: breakdown, mixedMismatch: mismatch };
+    return { computedTAE: tae, computedPayment: payment };
   }, [offer, loanAmount, termYears, appraisalCost]);
 
   return (
