@@ -1,49 +1,76 @@
 
 
-## Plan: Sincronizar TIN bonificado y plazo con los periodos mixtos
+## Plan: Inflación en seguros + simplificar mixta a 2 tramos
 
-### Problema
+### Parte 1 — Aplicar inflación a los seguros del operativo
 
-Cuando una oferta es **Mixta**, el gestor introduce el TIN bonificado del primer tramo y el plazo en los campos generales del editor. Estos valores **se copian una sola vez** al crear los periodos por defecto, pero después no se sincronizan: si el gestor cambia el TIN o el plazo, el "Desglose por tramo (auto-calculado)" sigue mostrando el valor anterior porque lee de `mixedPeriods`, que quedó desactualizado.
+**Problema actual**
+Los seguros (`home_insurance_annual`, `life_insurance_annual`) se guardan en la operación pero **no se incluyen en `calcTotalCost`** del motor. La inflación solo se aplica a las "bonificaciones" (linkages) que el gestor añade manualmente por oferta. Resultado: el toggle de inflación no afecta nada relacionado a los seguros del operativo.
 
-### Causa raíz
+**Cambios**
 
-En `src/components/admin/OfferEditor.tsx`, la función `update()`:
+1. `src/lib/mortgageCalc.ts`
+   - Nueva función `calcInsuranceCostWithInflation(defaults, inflationRate)` que calcula la suma de `(homeInsuranceAnnualDefault + lifeInsuranceAnnualDefault) * (1+inf)^i` para `i = 0..termYears-1`.
+   - `calcTotalCost` suma este valor al total.
+   - `computeOffer` devuelve `insuranceTotalWithInflation` y `insuranceTotalNoInflation` por separado, para poder mostrar el delta.
+   - `calcCumulativeCostByYear` incluye los seguros con inflación compuesta año a año en la curva acumulada.
 
-- Solo crea los `mixedPeriods` por defecto cuando se cambia el tipo a "Mixto".
-- No propaga cambios de `base_tin` al `fixed_tin` del primer tramo fijo.
-- No propaga cambios de `term_years_override` al `to_year` del último tramo.
+2. **Visualización del cliente** (`InterestBarChart` y vista cliente)
+   - El gráfico actual separa "Intereses" vs "Bonificaciones". Añadir/renombrar el segundo bloque a **"Bonificaciones + seguros (con inflación)"** mostrando claramente el sumatorio inflado de seguros del operativo.
+   - Tooltip explicando: "Incluye seguros anuales ajustados por una inflación del X% anual".
 
-El componente `MixedPeriodEditor` muestra los valores actuales pero no sugiere los del menú general como placeholder/default.
+3. **Edge function `fetch-inflation`**
+   - La estructura ya permite actualización diaria: cache de 24h en `cached_rates`, scrapping desde datosmacro. **No requiere cambios estructurales.**
+   - Mejora: el regex actual puede captar valores incorrectos (mismo problema que tuvo Euríbor). Endurecer patrones para extraer específicamente el "IPC interanual España" más reciente (actualmente ~2.6%) y añadir un patrón secundario al INE como fuente de respaldo.
+   - Reducir TTL a 24h (ya está) — el dato real solo se publica una vez al mes, así que diario es suficiente.
 
-### Cambios
+4. **OperationEditor** (admin)
+   - Mostrar al lado del campo "Inflación %" un texto pequeño: "Auto-actualizado desde fuente oficial (IPC interanual España: X.X%)" y un botón "Refrescar" que invoque la edge function.
 
-**1. `src/components/admin/OfferEditor.tsx` — sincronización automática en `update()`**
+---
 
-Cuando la oferta es de tipo Mixto y existen periodos, propagar cambios:
+### Parte 2 — Simplificar la mixta a 2 tramos
 
-- Si cambia `base_tin`: actualizar el `fixed_tin` del **primer tramo fijo** (el primero con `fixed_tin !== null`) al nuevo valor.
-- Si cambia `term_years_override` (o `termYears` global): actualizar el `to_year` del **último tramo** al nuevo plazo en años.
-- Si cambia `type` a algo distinto de "Mixto": dejar los periodos como están (no borrar) pero no aplicar la sincronización.
+**Estado actual**
+El editor muestra: TIN bonificado, plazo, diferencial sobre Euríbor, **toggle de sincronización**, **lista completa de "Periodos mixtos"** editables (`MixedPeriodEditor`) y **"Desglose por tramo (auto-calculado)"**. Es redundante y confuso.
 
-Esta sincronización solo se aplica cuando el gestor **no ha personalizado manualmente** esos campos en `MixedPeriodEditor`. Para mantenerlo simple y predecible, la sincronización se hace siempre que el tipo sea "Mixto" — el gestor puede sobreescribir manualmente después en el editor de periodos si lo desea, y a partir de ese momento el desglose reflejará lo que él configuró.
+**Nueva UX para Mixto**
 
-**2. `src/components/admin/MixedPeriodEditor.tsx` — sugerencias visuales**
+El gestor solo verá **tres campos** (todo lo demás se calcula):
+- **TIN bonificado primer tramo %** (ya existe)
+- **Años del tramo fijo** (nuevo input simple, ej: `10`) — define el punto de quiebre
+- **Diferencial sobre Euríbor %** (ya existe)
 
-Aceptar dos props nuevas opcionales: `suggestedFixedTIN` (= `offer.base_tin`) y `suggestedTermYears` (= plazo efectivo).
+El plazo total sigue siendo el del campo "Plazo (años)" general de la oferta.
 
-- En el input de "TIN fijo %": cuando el campo está vacío, mostrar como `placeholder` el valor sugerido (ej. `"1.50 (sugerido)"`).
-- En el input de "Hasta año" del último tramo: mostrar como `placeholder` el plazo total sugerido.
+**Cambios concretos en `OfferEditor.tsx`**
 
-Esto hace evidente para el gestor de dónde viene el valor y le permite confiar en los campos generales como fuente de verdad.
+1. **Eliminar de la UI del modo Mixto**:
+   - El componente `MixedPeriodEditor` completo.
+   - El toggle "Sincronizar con campos generales".
+   - El bloque "Desglose por tramo (auto-calculado)".
+   - El warning de `mixedMismatch` (queda obsoleto al no haber edición manual posible).
 
-**3. Verificación del desglose**
+2. **Añadir un único nuevo campo** "Años tramo fijo" (default: 10) junto a "Diferencial sobre Euríbor".
 
-Tras estos cambios, `calcPeriodBreakdown` (que ya consume `offer.mixedPeriods` actualizados) reflejará automáticamente los valores correctos en "Desglose por tramo (auto-calculado)" sin más cambios en `mortgageCalc.ts`.
+3. **Construcción interna de `mixedPeriods`**: cada vez que cambia `base_tin`, `term_years_override`, `años tramo fijo` o `diferencial`, se reconstruye `mixedPeriods` siempre con exactamente 2 entradas:
+   ```
+   [
+     { from_year: 1, to_year: fixedYears, fixed_tin: base_tin, spread_over_euribor: null },
+     { from_year: fixedYears + 1, to_year: termYears, fixed_tin: null, spread_over_euribor: spread }
+   ]
+   ```
 
-### Resultado esperado
+4. **Persistencia**: la tabla `offer_mixed_periods` y `MixedRatePeriod` no cambian — seguimos guardando 2 filas. El motor (`mortgageCalc.ts`) sigue funcionando exactamente igual.
 
-- Cambiar el TIN bonificado del primer tramo en el menú general actualiza al instante el desglose y el cálculo de cuota.
-- Cambiar el plazo en años actualiza el rango del último tramo.
-- El editor de periodos mixtos sugiere visualmente los valores de los campos generales como placeholders.
+5. **Eliminar el archivo** `src/components/admin/MixedPeriodEditor.tsx` (ya no se usa) y limpiar imports.
+
+6. **Migración silenciosa de ofertas existentes**: al cargar una oferta Mixto desde la BD, derivar `años tramo fijo` del primer periodo (`to_year` del primer tramo con `fixed_tin`). Si tiene >2 tramos, colapsar al esquema de 2 (primer tramo fijo encontrado + último tramo variable) y mostrar un toast de aviso.
+
+---
+
+### Resultado
+
+- **Inflación en seguros**: se suma al coste total y se ve en el desglose; valor IPC actualizado diariamente desde fuente oficial.
+- **Mixta**: el gestor solo introduce 3 datos (TIN, años fijos, diferencial). Cero edición de tramos manual, cero desincronización posible.
 
