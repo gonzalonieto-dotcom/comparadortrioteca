@@ -317,7 +317,18 @@ const OperationEditor = () => {
                 <Input type="number" value={op.term_years} onFocus={(e) => e.target.select()} onChange={(e) => setOp(prev => ({ ...prev, term_years: +e.target.value }))} />
               </div>
               <div>
-                <Label>Inflación anual estimada %</Label>
+                <Label className="flex items-center gap-1.5">
+                  Inflación anual %
+                  <button
+                    type="button"
+                    onClick={refreshInflation}
+                    disabled={refreshingInflation}
+                    className="text-[10px] text-primary hover:underline disabled:opacity-50"
+                    title="Actualizar IPC interanual desde fuente oficial"
+                  >
+                    {refreshingInflation ? "..." : "↻ IPC"}
+                  </button>
+                </Label>
                 <Input
                   type="number"
                   step="0.1"
@@ -325,6 +336,29 @@ const OperationEditor = () => {
                   onFocus={(e) => e.target.select()}
                   onChange={(e) => setOp(prev => ({ ...prev, inflation_rate: +e.target.value }))}
                   placeholder="3.0"
+                />
+                <p className="text-[10px] text-muted-foreground mt-0.5">
+                  Aplicada anualmente a seguros del operativo
+                </p>
+              </div>
+              <div>
+                <Label>Seguro hogar €/año</Label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  value={op.home_insurance_annual}
+                  onFocus={(e) => e.target.select()}
+                  onChange={(e) => setOp(prev => ({ ...prev, home_insurance_annual: +e.target.value }))}
+                />
+              </div>
+              <div>
+                <Label>Seguro vida €/año</Label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  value={op.life_insurance_annual}
+                  onFocus={(e) => e.target.select()}
+                  onChange={(e) => setOp(prev => ({ ...prev, life_insurance_annual: +e.target.value }))}
                 />
               </div>
             </div>
