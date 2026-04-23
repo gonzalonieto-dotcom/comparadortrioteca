@@ -122,6 +122,22 @@ export function calcAnnualLinkageCost(offer: Offer): number {
   return offer.linkages.filter((l) => l.isActive).reduce((s, l) => s + l.annualCostEUR, 0);
 }
 
+// ─── Operation insurance cost with compound inflation ───
+// Suma anual de los seguros del operativo (vivienda + vida) ajustados por
+// inflación compuesta a lo largo del plazo. Estos seguros viven en la
+// operación, no en cada oferta, por eso se calculan aparte.
+export function calcInsuranceCost(defaults: OperationDefaults, inflationRate?: number): number {
+  const annual = (defaults.homeInsuranceAnnualDefault ?? 0) + (defaults.lifeInsuranceAnnualDefault ?? 0);
+  if (annual <= 0) return 0;
+  const inf = (inflationRate ?? 0) / 100;
+  if (inf <= 0) return annual * defaults.termYears;
+  let total = 0;
+  for (let i = 0; i < defaults.termYears; i++) {
+    total += annual * Math.pow(1 + inf, i);
+  }
+  return total;
+}
+
 // ─── Total cost approx ───
 export function calcTotalCost(
   offer: Offer,
@@ -133,7 +149,8 @@ export function calcTotalCost(
   const totalLinkage = calcTotalLinkageCost(offer, defaults.termYears, inflationRate);
   const termMonths = defaults.termYears * 12;
   const totalAccountCost = offer.monthlyAccountCostEUR * termMonths;
-  return totalInterest + totalLinkage + offer.upfrontCostsEUR + totalAccountCost + defaults.appraisalCostEUR;
+  const totalInsurance = calcInsuranceCost(defaults, inflationRate);
+  return totalInterest + totalLinkage + totalInsurance + offer.upfrontCostsEUR + totalAccountCost + defaults.appraisalCostEUR;
 }
 
 // ─── Estimated TAE via IRR (bisection) ───
