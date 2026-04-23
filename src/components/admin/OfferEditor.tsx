@@ -6,16 +6,14 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Trash2, ChevronDown, ChevronUp, Calculator } from "lucide-react";
-import { AlertTriangle } from "lucide-react";
-import { Switch } from "@/components/ui/switch";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 
 import { toast } from "sonner";
 import LinkageEditor, { type LinkageFormData, PRESET_LINKAGES } from "./LinkageEditor";
 import PdfDropZone from "./PdfDropZone";
-import MixedPeriodEditor, { type MixedPeriodFormData } from "./MixedPeriodEditor";
+import type { MixedPeriodFormData } from "./MixedPeriodEditor";
 import type { Offer, OperationDefaults, Linkage, MixedRatePeriod } from "@/data/mortgageData";
-import { calcMonthlyPayment, calcEstimatedTAE, generateAmortizationSchedule, calcBonifiedTIN, calcPeriodBreakdown } from "@/lib/mortgageCalc";
+import { calcMonthlyPayment, calcEstimatedTAE, generateAmortizationSchedule, calcBonifiedTIN } from "@/lib/mortgageCalc";
 import { BankLogo } from "@/lib/bankLogos";
 
 export const BANK_PRESETS: Record<string, { color: string }> = {
