@@ -32,6 +32,7 @@ const OperationEditor = () => {
   const [expandedIndex, setExpandedIndex] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [euriborRate, setEuriborRate] = useState<number | null>(null);
+  const [refreshingInflation, setRefreshingInflation] = useState(false);
 
   const [op, setOp] = useState({
     purchase_price: 0, appraisal_value: 0, loan_amount: 0, term_years: 30,
@@ -70,6 +71,24 @@ const OperationEditor = () => {
     };
     fetchRates();
   }, []);
+
+  const refreshInflation = async () => {
+    setRefreshingInflation(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("fetch-inflation");
+      if (error) throw error;
+      if (data?.success && typeof data.inflation === "number") {
+        setOp((prev) => ({ ...prev, inflation_rate: data.inflation }));
+        toast.success(`IPC interanual actualizado: ${data.inflation.toFixed(1)}%`);
+      } else {
+        toast.error("No se pudo obtener el IPC");
+      }
+    } catch (e: any) {
+      toast.error(e.message || "Error obteniendo IPC");
+    } finally {
+      setRefreshingInflation(false);
+    }
+  };
 
   const loadData = async () => {
     try {
