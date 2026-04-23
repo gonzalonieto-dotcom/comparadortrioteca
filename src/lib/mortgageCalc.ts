@@ -238,6 +238,8 @@ export interface ComputedOffer {
   variableRate?: number;
   periodBreakdown: PeriodBreakdown[];
   insuranceCostWithInflation?: number;
+  insuranceCostNoInflation?: number;
+  totalInsuranceCost?: number;
 }
 
 export function computeOffer(offer: Offer, defaults: OperationDefaults, inflationRate?: number): ComputedOffer {
@@ -264,11 +266,10 @@ export function computeOffer(offer: Offer, defaults: OperationDefaults, inflatio
     }
   }
 
-  // Insurance cost with inflation = difference between inflated and non-inflated linkage cost
-  let insuranceCostWithInflation: number | undefined;
-  if (inflationRate && inflationRate > 0) {
-    insuranceCostWithInflation = totalLinkageCost;
-  }
+  // Operation-level insurance: home + life from defaults, optionally inflated.
+  const totalInsuranceCost = calcInsuranceCost(effectiveDefaults, inflationRate);
+  const insuranceCostNoInflation = calcInsuranceCost(effectiveDefaults, 0);
+  const insuranceCostWithInflation = inflationRate && inflationRate > 0 ? totalInsuranceCost : undefined;
 
   return {
     offer,
@@ -283,6 +284,8 @@ export function computeOffer(offer: Offer, defaults: OperationDefaults, inflatio
     variableRate,
     periodBreakdown,
     insuranceCostWithInflation,
+    insuranceCostNoInflation,
+    totalInsuranceCost,
   };
 }
 
