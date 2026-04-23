@@ -301,6 +301,7 @@ export function calcCumulativeCostByYear(
   inflationRate?: number
 ): YearlyCumulativeCost[] {
   const inf = (inflationRate ?? 0) / 100;
+  const annualInsurance = (defaults.homeInsuranceAnnualDefault ?? 0) + (defaults.lifeInsuranceAnnualDefault ?? 0);
   const years: YearlyCumulativeCost[] = [];
   for (let y = 1; y <= defaults.termYears; y++) {
     const row: YearlyCumulativeCost = { year: y };
@@ -313,11 +314,16 @@ export function calcCumulativeCostByYear(
       for (let i = 0; i < y; i++) {
         linkageCostToYear += co.annualLinkageCost * Math.pow(1 + inf, i);
       }
+      // Compound inflation on annual operation insurance
+      let insuranceToYear = 0;
+      for (let i = 0; i < y; i++) {
+        insuranceToYear += annualInsurance * Math.pow(1 + inf, i);
+      }
       const otherCostsToYear =
         co.offer.upfrontCostsEUR +
         defaults.appraisalCostEUR +
         co.offer.monthlyAccountCostEUR * y * 12;
-      row[co.offer.id] = interestToYear + linkageCostToYear + otherCostsToYear;
+      row[co.offer.id] = interestToYear + linkageCostToYear + insuranceToYear + otherCostsToYear;
     }
     years.push(row);
   }
