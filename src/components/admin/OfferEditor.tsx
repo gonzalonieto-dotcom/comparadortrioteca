@@ -254,22 +254,6 @@ const OfferEditor = ({ offer, index, onChange, onDelete, loanAmount, termYears, 
                   {offer.type === "Mixto" ? "TIN bonificado primer tramo %" : "TIN bonificado %"}
                 </Label>
                 <Input type="number" step="0.01" value={offer.base_tin} onFocus={(e) => e.target.select()} onChange={(e) => update({ base_tin: +e.target.value })} />
-                {mixedMismatch && (
-                  <div className="mt-1 flex items-start gap-1.5 rounded-md border border-destructive/40 bg-destructive/5 px-2 py-1.5 text-[11px] text-destructive">
-                    <AlertTriangle className="mt-0.5 h-3 w-3 shrink-0" />
-                    <div className="leading-tight">
-                      No coincide con el motor: el primer tramo fijo se está calculando al{" "}
-                      <strong>{mixedMismatch.expected.toFixed(2)}%</strong>.
-                      <button
-                        type="button"
-                        className="ml-1 underline underline-offset-2 hover:no-underline"
-                        onClick={() => update({ base_tin: +mixedMismatch.expected.toFixed(2) })}
-                      >
-                        Igualar
-                      </button>
-                    </div>
-                  </div>
-                )}
               </div>
               <div>
                 <Label className="text-xs">Plazo (años)</Label>
@@ -300,6 +284,28 @@ const OfferEditor = ({ offer, index, onChange, onDelete, loanAmount, termYears, 
             {offer.type === "Mixto" && (
               <div className="grid grid-cols-2 gap-3">
                 <div>
+                  <Label className="text-xs">Años tramo fijo</Label>
+                  <Input
+                    type="number"
+                    step="1"
+                    min={1}
+                    value={fixedYears}
+                    onFocus={(e) => e.target.select()}
+                    onChange={(e) => {
+                      const next = Math.max(1, +e.target.value || 1);
+                      setFixedYears(next);
+                      const totalYears = offer.term_years_override ?? termYears ?? 30;
+                      const currentSpread =
+                        offer.mixedPeriods.find((p) => p.spread_over_euribor !== null)?.spread_over_euribor ?? 0.9;
+                      onChange({
+                        ...offer,
+                        mixedPeriods: buildMixedPeriods(offer.base_tin || 1.5, next, currentSpread, totalYears),
+                      });
+                    }}
+                    placeholder="10"
+                  />
+                </div>
+                <div>
                   <Label className="text-xs">Diferencial sobre Euríbor %</Label>
                   <Input
                     type="number"
@@ -307,40 +313,15 @@ const OfferEditor = ({ offer, index, onChange, onDelete, loanAmount, termYears, 
                     value={offer.mixedPeriods?.[1]?.spread_over_euribor ?? offer.mixedPeriods?.[0]?.spread_over_euribor ?? ""}
                     onChange={(e) => {
                       const spread = e.target.value ? +e.target.value : null;
-                      const years = offer.term_years_override ?? termYears ?? 30;
-                      let periods = [...offer.mixedPeriods];
-                      if (periods.length >= 2) {
-                        // Update the variable period (second one)
-                        periods = periods.map((p, i) => i === 1 ? { ...p, spread_over_euribor: spread } : p);
-                      } else if (periods.length === 1) {
-                        periods.push({ from_year: 11, to_year: years, fixed_tin: null, spread_over_euribor: spread });
-                      } else {
-                        periods = [
-                          { from_year: 1, to_year: 10, fixed_tin: offer.base_tin, spread_over_euribor: null },
-                          { from_year: 11, to_year: years, fixed_tin: null, spread_over_euribor: spread },
-                        ];
-                      }
-                      update({ mixedPeriods: periods });
+                      const totalYears = offer.term_years_override ?? termYears ?? 30;
+                      onChange({
+                        ...offer,
+                        mixedPeriods: buildMixedPeriods(offer.base_tin || 1.5, fixedYears, spread, totalYears),
+                      });
                     }}
                     placeholder="Ej: 0.75"
                   />
                 </div>
-              </div>
-            )}
-
-            {/* Mixed period breakdown (read-only) */}
-            {offer.type === "Mixto" && periodBreakdown.length > 0 && (
-              <div className="bg-muted/50 rounded-lg p-3 space-y-2">
-                <Label className="text-xs font-medium text-muted-foreground">Desglose por tramo (auto-calculado)</Label>
-                {periodBreakdown.map((pb, i) => (
-                  <div key={i} className="flex items-center justify-between text-xs">
-                    <span className="text-card-foreground">{pb.label}</span>
-                    <div className="flex gap-4">
-                      <span className="text-muted-foreground">TIN: {pb.rate.toFixed(2)}%</span>
-                      <span className="font-medium text-card-foreground">Cuota: {fmt(pb.avgMonthlyPayment)}</span>
-                    </div>
-                  </div>
-                ))}
               </div>
             )}
 
@@ -362,27 +343,6 @@ const OfferEditor = ({ offer, index, onChange, onDelete, loanAmount, termYears, 
                 <Input type="number" step="0.01" value={offer.euribor_rate ?? ""} onChange={(e) => update({ euribor_rate: e.target.value ? +e.target.value : null })} placeholder="Auto" />
               </div>
             </div>
-
-            {/* Mixed periods (only for Mixto type) */}
-            {offer.type === "Mixto" && (
-              <div className="space-y-2">
-                <div className="flex items-center justify-between rounded-md border bg-muted/30 px-3 py-2">
-                  <div className="flex flex-col">
-                    <Label className="text-xs font-medium">Sincronizar con campos generales</Label>
-                    <span className="text-[10px] text-muted-foreground">
-                      Propaga TIN bonificado y plazo al primer/último tramo automáticamente
-                    </span>
-                  </div>
-                  <Switch checked={syncMixed} onCheckedChange={setSyncMixed} />
-                </div>
-                <MixedPeriodEditor
-                  periods={offer.mixedPeriods}
-                  onChange={(mixedPeriods) => update({ mixedPeriods })}
-                  suggestedFixedTIN={syncMixed ? offer.base_tin : undefined}
-                  suggestedTermYears={syncMixed ? (offer.term_years_override ?? termYears ?? 30) : undefined}
-                />
-              </div>
-            )}
 
             {/* Bonificaciones (collapsible dentro del formulario) */}
             <Collapsible>
