@@ -111,39 +111,41 @@ const OfferEditor = ({ offer, index, onChange, onDelete, loanAmount, termYears, 
   const [expandedLocal, setExpandedLocal] = useState(true);
   const expanded = expandedProp !== undefined ? expandedProp : expandedLocal;
   const toggleExpanded = onToggle || (() => setExpandedLocal(!expandedLocal));
-  const [syncMixed, setSyncMixed] = useState(true);
+
+  // Derive number of fixed years for Mixto from existing periods (default 10)
+  const initialFixedYears =
+    offer.type === "Mixto" && offer.mixedPeriods.length > 0
+      ? offer.mixedPeriods.find((p) => p.fixed_tin !== null)?.to_year ?? 10
+      : 10;
+  const [fixedYears, setFixedYears] = useState<number>(initialFixedYears);
+
+  // Build the canonical 2-period structure for Mixto
+  const buildMixedPeriods = (
+    baseTIN: number,
+    fixYears: number,
+    spread: number | null,
+    totalYears: number
+  ): MixedPeriodFormData[] => {
+    const safeFix = Math.max(1, Math.min(fixYears, totalYears - 1));
+    return [
+      { from_year: 1, to_year: safeFix, fixed_tin: baseTIN, spread_over_euribor: null },
+      { from_year: safeFix + 1, to_year: totalYears, fixed_tin: null, spread_over_euribor: spread },
+    ];
+  };
 
   const update = (patch: Partial<OfferFormData>) => {
     const updated = { ...offer, ...patch };
-    // Auto-create default mixed periods when switching to Mixto
-    if (patch.type === "Mixto" && updated.mixedPeriods.length === 0) {
-      const years = updated.term_years_override ?? termYears ?? 30;
-      updated.mixedPeriods = [
-        { from_year: 1, to_year: 10, fixed_tin: updated.base_tin || 1.5, spread_over_euribor: null },
-        { from_year: 11, to_year: years, fixed_tin: null, spread_over_euribor: 0.90 },
-      ];
-    }
-    // Sync general fields → mixed periods (only when toggle enabled and Mixto with periods)
-    if (syncMixed && updated.type === "Mixto" && updated.mixedPeriods.length > 0) {
-      let periods = updated.mixedPeriods;
-      // Sync base_tin → first fixed-tin period
-      if (patch.base_tin !== undefined) {
-        const firstFixedIdx = periods.findIndex((p) => p.fixed_tin !== null);
-        if (firstFixedIdx !== -1) {
-          periods = periods.map((p, i) =>
-            i === firstFixedIdx ? { ...p, fixed_tin: updated.base_tin } : p
-          );
-        }
-      }
-      // Sync term_years_override → to_year of last period
-      if (patch.term_years_override !== undefined) {
-        const newYears = updated.term_years_override ?? termYears ?? 30;
-        const lastIdx = periods.length - 1;
-        periods = periods.map((p, i) =>
-          i === lastIdx ? { ...p, to_year: newYears } : p
-        );
-      }
-      updated.mixedPeriods = periods;
+    // Always rebuild the 2-period structure when working with Mixto so that
+    // base_tin, term and spread stay in sync. The manager only edits these
+    // three values via the general inputs.
+    if (updated.type === "Mixto") {
+      const totalYears = updated.term_years_override ?? termYears ?? 30;
+      const currentSpread =
+        updated.mixedPeriods.find((p) => p.spread_over_euribor !== null)?.spread_over_euribor ?? 0.9;
+      updated.mixedPeriods = buildMixedPeriods(updated.base_tin || 1.5, fixedYears, currentSpread, totalYears);
+    } else if (patch.type && patch.type !== "Mixto") {
+      // Switching away from Mixto → drop mixed periods
+      updated.mixedPeriods = [];
     }
     onChange(updated);
   };
