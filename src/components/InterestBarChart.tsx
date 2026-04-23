@@ -396,7 +396,7 @@ const InterestBarChart = ({ computedOffers, recommendedId, defaults, partialPaym
           </TabsList>
         </div>
         <TabsContent value="total">
-          <StackedBarTab computedOffers={computedOffers} recommendedId={recommendedId} />
+          <StackedBarTab computedOffers={computedOffers} recommendedId={recommendedId} inflationRate={inflationRate} />
         </TabsContent>
         <TabsContent value="breakeven">
           <BreakevenTab computedOffers={computedOffers} defaults={defaults} partialPayments={partialPayments} inflationRate={inflationRate} />
