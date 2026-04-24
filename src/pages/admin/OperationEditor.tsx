@@ -336,28 +336,8 @@ const OperationEditor = () => {
                   placeholder="3.0"
                 />
                 <p className="text-[10px] text-muted-foreground mt-0.5">
-                  Aplicada anualmente a seguros del operativo
+                  Aplicada anualmente a las bonificaciones (incluye seguros) de cada oferta
                 </p>
-              </div>
-              <div>
-                <Label>Seguro hogar €/año</Label>
-                <Input
-                  type="number"
-                  step="0.01"
-                  value={op.home_insurance_annual}
-                  onFocus={(e) => e.target.select()}
-                  onChange={(e) => setOp(prev => ({ ...prev, home_insurance_annual: +e.target.value }))}
-                />
-              </div>
-              <div>
-                <Label>Seguro vida €/año</Label>
-                <Input
-                  type="number"
-                  step="0.01"
-                  value={op.life_insurance_annual}
-                  onFocus={(e) => e.target.select()}
-                  onChange={(e) => setOp(prev => ({ ...prev, life_insurance_annual: +e.target.value }))}
-                />
               </div>
             </div>
           </CardContent>
