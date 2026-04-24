@@ -1,58 +1,72 @@
 
 
-## Plan: quitar seguros del operativo + visibilizar inflación en el desglose
+## Plan: evitar que se borren los datos del editor al cambiar de pestaña
 
-### Parte 1 — Quitar seguros hogar/vida del panel "Datos de la operación"
+### Diagnóstico
 
-Los seguros pertenecen a cada oferta (ya viven como bonificaciones con `annual_cost` por banco). Tenerlos también a nivel operativo provoca **doble contabilización** y confusión.
+Cuando el gestor cambia de pestaña del navegador (o al móvil/otra app) y vuelve, el formulario de la comparativa se **resetea a los últimos datos guardados en BD** y pierde todo lo no guardado.
 
-**Cambios**
+**Causa raíz**: el hook `useAuth` se suscribe a `supabase.auth.onAuthStateChange`. Supabase dispara eventos como `TOKEN_REFRESHED` y `SIGNED_IN` periódicamente (cada vez que se refresca el token, lo cual se acelera al volver a una pestaña suspendida). Cada evento ejecuta `setUser(session?.user ?? null)`, lo que crea un **nuevo objeto User** (referencia distinta aunque sea el mismo usuario).
 
-1. **`src/pages/admin/OperationEditor.tsx`**
-   - Eliminar los dos inputs "Seguro hogar €/año" y "Seguro vida €/año".
-   - Quitar `home_insurance_annual` y `life_insurance_annual` del estado `op` y de la carga/guardado.
-   - El grid de "Datos de la operación" pasa a 4 campos: Precio vivienda, Importe préstamo, Plazo, Inflación.
+En `src/pages/admin/OperationEditor.tsx`:
 
-2. **`src/lib/mortgageCalc.ts`**
-   - Eliminar la función `calcInsuranceCost` y los campos `insuranceCostWithInflation / insuranceCostNoInflation / totalInsuranceCost` de `ComputedOffer`.
-   - `calcTotalCost` deja de sumar el seguro del operativo (solo intereses + bonificaciones inflactadas + cuenta + upfront + tasación).
-   - `calcCumulativeCostByYear` deja de sumar `annualInsurance` (solo intereses + bonificaciones inflactadas + otros).
+```ts
+useEffect(() => {
+  if (user && id) loadData();   // ← sobrescribe el estado del formulario
+}, [user, id]);                  // ← se re-dispara con cada token refresh
+```
 
-3. **Limpiar referencias** en `useOperation.ts`, `SharedOperation.tsx`, `OperationEditor.tsx` (el bloque de save), `InterestBarChart.tsx` (la barra "Bonificaciones + seguros" vuelve a llamarse "Bonificaciones") y mapeos de `OperationDefaults` (los dos campos quedan obsoletos — los dejamos en la interfaz pero siempre a 0, o los retiramos).
-   - DB: `home_insurance_annual` y `life_insurance_annual` quedan en la tabla `operations` por compatibilidad con datos existentes pero el código deja de leerlos/escribirlos. No se borra columna para no romper imports históricos.
+Resultado: `loadData()` recarga `op` y `offers` desde la BD, machacando lo que el gestor estaba escribiendo. Además `expandedIndex` se mantiene pero la oferta que estaba abierta vuelve a sus valores guardados.
 
-### Parte 2 — Mostrar la inflación año a año en "Coste total aproximado"
+### Solución
 
-El cliente/gestor ve la card `CostBreakdown` por oferta con líneas: Intereses, Bonificaciones (con un texto chiquito "con inflación X%"). Pero **no se ve cómo crece** el coste de las bonificaciones año a año — solo el sumatorio plano.
+#### 1. Estabilizar `useAuth` por id de usuario (raíz del problema)
 
-**Cambios en `src/components/CostBreakdown.tsx`**
+`src/hooks/useAuth.ts`: solo actualizar el estado `user` cuando el **id** cambia realmente, no en cada refresh de token. Mantener `session` actualizada (necesaria para llamadas autenticadas) pero `user` referencialmente estable mientras sea el mismo usuario.
 
-1. Recibir `inflationRate` y la lista de bonificaciones activas.
-2. Bajo la línea "Bonificaciones (N activas)" añadir un **mini-desglose colapsable** (`Collapsible` ya existente) llamado **"Ver evolución por inflación"** que muestre una tabla pequeña con 4 hitos (Año 1, 10, 20, plazo final) por bonificación activa relevante (ej: seguro hogar, seguro vida):
+```ts
+supabase.auth.onAuthStateChange((_event, session) => {
+  setSession(session);
+  setUser(prev => {
+    const next = session?.user ?? null;
+    if (prev?.id === next?.id) return prev;   // misma identidad → no re-render
+    return next;
+  });
+  setLoading(false);
+});
+```
 
-   ```
-   Seguro Hogar           Año 1      Año 10     Año 20     Año 30
-                          240 €      287 €      343 €      410 €
-   Seguro Vida            180 €      215 €      257 €      308 €
-   ─────────────────────────────────────────────────────────────
-   Total acumulado        420 €      5.230 €   13.840 €   28.700 €
-   ```
+Beneficio colateral: arregla el mismo síntoma en `useRole`, `Operations.tsx`, `ChecklistManager.tsx`, `UserManagement.tsx` (todos dependen de `[user, ...]` en useEffect).
 
-3. Donde el cálculo es: para cada bonificación con `annualCostEUR > 0`, mostrar `cost * (1+inf)^(year-1)` en cada hito y un total acumulado `Σ cost * (1+inf)^i` desde año 0 hasta año Y-1.
+#### 2. Defensa extra en `OperationEditor.tsx`: cargar solo una vez
 
-4. Pasar `inflationRate` desde `Index.tsx` y `ClientComparison.tsx` (actualmente solo `SharedOperation.tsx` lo pasa).
+Cambiar la dependencia para depender únicamente de `id` y un flag, en vez del objeto `user`:
 
-5. Helper text: "Cada año el coste de tu seguro y otras bonificaciones sube un X% por inflación".
+```ts
+const loadedIdRef = useRef<string | null>(null);
+useEffect(() => {
+  if (!user || !id) return;
+  if (loadedIdRef.current === id) return;   // ya cargado para este id
+  loadedIdRef.current = id;
+  loadData();
+}, [user, id]);
+```
 
-**`src/pages/Index.tsx`** y **`src/pages/ClientComparison.tsx`**: pasar `inflationRate={defaults.inflationRate ?? operationInflation}` al componente `CostBreakdown`.
+Así, aunque algún día `user` cambiase de referencia por otra causa, el formulario nunca se sobrescribe mientras estemos en la misma operación. Se vuelve a cargar solo si el gestor navega a otra operación distinta.
 
-### Parte 3 — Verificación lógica
+#### 3. Aplicar el mismo patrón al editor de checklists (también es formulario)
 
-- Confirmar que `calcTotalLinkageCost` sigue aplicando inflación compuesta correctamente sobre `annualCostEUR` de cada linkage activa (ya lo hace, líneas 105-118 de `mortgageCalc.ts`).
-- Tras quitar `calcInsuranceCost`, los totales bajan en el monto que duplicaba — el coste real ahora coincide con la suma visible de las bonificaciones (incluidos seguros del banco).
+`ChecklistManager.tsx` carga datos en función de `user`. Aplicar el mismo `loadedRef` para no recargar al volver de pestaña.
+
+### Archivos a tocar
+
+- `src/hooks/useAuth.ts` — comparar por `user.id` antes de `setUser`.
+- `src/pages/admin/OperationEditor.tsx` — añadir `loadedIdRef` para no re-llamar `loadData`.
+- `src/pages/admin/ChecklistManager.tsx` — mismo patrón defensivo.
 
 ### Resultado
 
-- Panel del gestor más limpio: 4 campos en "Datos de la operación", los seguros se gestionan donde corresponden (en la oferta de cada banco como bonificaciones).
-- "Coste total aproximado" deja de duplicar el seguro y muestra explícitamente la evolución año a año por inflación, justificando visualmente el peso del IPC en el cálculo.
+- El gestor puede cambiar de pestaña, contestar un mensaje, volver una hora después, y todo lo que escribió sigue ahí.
+- El botón "Guardar" sigue siendo la única vía para persistir; nada se pierde de forma silenciosa.
+- Sin cambios en BD ni en la lógica de cálculo.
 
