@@ -1,76 +1,58 @@
 
 
-## Plan: Inflación en seguros + simplificar mixta a 2 tramos
+## Plan: quitar seguros del operativo + visibilizar inflación en el desglose
 
-### Parte 1 — Aplicar inflación a los seguros del operativo
+### Parte 1 — Quitar seguros hogar/vida del panel "Datos de la operación"
 
-**Problema actual**
-Los seguros (`home_insurance_annual`, `life_insurance_annual`) se guardan en la operación pero **no se incluyen en `calcTotalCost`** del motor. La inflación solo se aplica a las "bonificaciones" (linkages) que el gestor añade manualmente por oferta. Resultado: el toggle de inflación no afecta nada relacionado a los seguros del operativo.
+Los seguros pertenecen a cada oferta (ya viven como bonificaciones con `annual_cost` por banco). Tenerlos también a nivel operativo provoca **doble contabilización** y confusión.
 
 **Cambios**
 
-1. `src/lib/mortgageCalc.ts`
-   - Nueva función `calcInsuranceCostWithInflation(defaults, inflationRate)` que calcula la suma de `(homeInsuranceAnnualDefault + lifeInsuranceAnnualDefault) * (1+inf)^i` para `i = 0..termYears-1`.
-   - `calcTotalCost` suma este valor al total.
-   - `computeOffer` devuelve `insuranceTotalWithInflation` y `insuranceTotalNoInflation` por separado, para poder mostrar el delta.
-   - `calcCumulativeCostByYear` incluye los seguros con inflación compuesta año a año en la curva acumulada.
+1. **`src/pages/admin/OperationEditor.tsx`**
+   - Eliminar los dos inputs "Seguro hogar €/año" y "Seguro vida €/año".
+   - Quitar `home_insurance_annual` y `life_insurance_annual` del estado `op` y de la carga/guardado.
+   - El grid de "Datos de la operación" pasa a 4 campos: Precio vivienda, Importe préstamo, Plazo, Inflación.
 
-2. **Visualización del cliente** (`InterestBarChart` y vista cliente)
-   - El gráfico actual separa "Intereses" vs "Bonificaciones". Añadir/renombrar el segundo bloque a **"Bonificaciones + seguros (con inflación)"** mostrando claramente el sumatorio inflado de seguros del operativo.
-   - Tooltip explicando: "Incluye seguros anuales ajustados por una inflación del X% anual".
+2. **`src/lib/mortgageCalc.ts`**
+   - Eliminar la función `calcInsuranceCost` y los campos `insuranceCostWithInflation / insuranceCostNoInflation / totalInsuranceCost` de `ComputedOffer`.
+   - `calcTotalCost` deja de sumar el seguro del operativo (solo intereses + bonificaciones inflactadas + cuenta + upfront + tasación).
+   - `calcCumulativeCostByYear` deja de sumar `annualInsurance` (solo intereses + bonificaciones inflactadas + otros).
 
-3. **Edge function `fetch-inflation`**
-   - La estructura ya permite actualización diaria: cache de 24h en `cached_rates`, scrapping desde datosmacro. **No requiere cambios estructurales.**
-   - Mejora: el regex actual puede captar valores incorrectos (mismo problema que tuvo Euríbor). Endurecer patrones para extraer específicamente el "IPC interanual España" más reciente (actualmente ~2.6%) y añadir un patrón secundario al INE como fuente de respaldo.
-   - Reducir TTL a 24h (ya está) — el dato real solo se publica una vez al mes, así que diario es suficiente.
+3. **Limpiar referencias** en `useOperation.ts`, `SharedOperation.tsx`, `OperationEditor.tsx` (el bloque de save), `InterestBarChart.tsx` (la barra "Bonificaciones + seguros" vuelve a llamarse "Bonificaciones") y mapeos de `OperationDefaults` (los dos campos quedan obsoletos — los dejamos en la interfaz pero siempre a 0, o los retiramos).
+   - DB: `home_insurance_annual` y `life_insurance_annual` quedan en la tabla `operations` por compatibilidad con datos existentes pero el código deja de leerlos/escribirlos. No se borra columna para no romper imports históricos.
 
-4. **OperationEditor** (admin)
-   - Mostrar al lado del campo "Inflación %" un texto pequeño: "Auto-actualizado desde fuente oficial (IPC interanual España: X.X%)" y un botón "Refrescar" que invoque la edge function.
+### Parte 2 — Mostrar la inflación año a año en "Coste total aproximado"
 
----
+El cliente/gestor ve la card `CostBreakdown` por oferta con líneas: Intereses, Bonificaciones (con un texto chiquito "con inflación X%"). Pero **no se ve cómo crece** el coste de las bonificaciones año a año — solo el sumatorio plano.
 
-### Parte 2 — Simplificar la mixta a 2 tramos
+**Cambios en `src/components/CostBreakdown.tsx`**
 
-**Estado actual**
-El editor muestra: TIN bonificado, plazo, diferencial sobre Euríbor, **toggle de sincronización**, **lista completa de "Periodos mixtos"** editables (`MixedPeriodEditor`) y **"Desglose por tramo (auto-calculado)"**. Es redundante y confuso.
+1. Recibir `inflationRate` y la lista de bonificaciones activas.
+2. Bajo la línea "Bonificaciones (N activas)" añadir un **mini-desglose colapsable** (`Collapsible` ya existente) llamado **"Ver evolución por inflación"** que muestre una tabla pequeña con 4 hitos (Año 1, 10, 20, plazo final) por bonificación activa relevante (ej: seguro hogar, seguro vida):
 
-**Nueva UX para Mixto**
-
-El gestor solo verá **tres campos** (todo lo demás se calcula):
-- **TIN bonificado primer tramo %** (ya existe)
-- **Años del tramo fijo** (nuevo input simple, ej: `10`) — define el punto de quiebre
-- **Diferencial sobre Euríbor %** (ya existe)
-
-El plazo total sigue siendo el del campo "Plazo (años)" general de la oferta.
-
-**Cambios concretos en `OfferEditor.tsx`**
-
-1. **Eliminar de la UI del modo Mixto**:
-   - El componente `MixedPeriodEditor` completo.
-   - El toggle "Sincronizar con campos generales".
-   - El bloque "Desglose por tramo (auto-calculado)".
-   - El warning de `mixedMismatch` (queda obsoleto al no haber edición manual posible).
-
-2. **Añadir un único nuevo campo** "Años tramo fijo" (default: 10) junto a "Diferencial sobre Euríbor".
-
-3. **Construcción interna de `mixedPeriods`**: cada vez que cambia `base_tin`, `term_years_override`, `años tramo fijo` o `diferencial`, se reconstruye `mixedPeriods` siempre con exactamente 2 entradas:
    ```
-   [
-     { from_year: 1, to_year: fixedYears, fixed_tin: base_tin, spread_over_euribor: null },
-     { from_year: fixedYears + 1, to_year: termYears, fixed_tin: null, spread_over_euribor: spread }
-   ]
+   Seguro Hogar           Año 1      Año 10     Año 20     Año 30
+                          240 €      287 €      343 €      410 €
+   Seguro Vida            180 €      215 €      257 €      308 €
+   ─────────────────────────────────────────────────────────────
+   Total acumulado        420 €      5.230 €   13.840 €   28.700 €
    ```
 
-4. **Persistencia**: la tabla `offer_mixed_periods` y `MixedRatePeriod` no cambian — seguimos guardando 2 filas. El motor (`mortgageCalc.ts`) sigue funcionando exactamente igual.
+3. Donde el cálculo es: para cada bonificación con `annualCostEUR > 0`, mostrar `cost * (1+inf)^(year-1)` en cada hito y un total acumulado `Σ cost * (1+inf)^i` desde año 0 hasta año Y-1.
 
-5. **Eliminar el archivo** `src/components/admin/MixedPeriodEditor.tsx` (ya no se usa) y limpiar imports.
+4. Pasar `inflationRate` desde `Index.tsx` y `ClientComparison.tsx` (actualmente solo `SharedOperation.tsx` lo pasa).
 
-6. **Migración silenciosa de ofertas existentes**: al cargar una oferta Mixto desde la BD, derivar `años tramo fijo` del primer periodo (`to_year` del primer tramo con `fixed_tin`). Si tiene >2 tramos, colapsar al esquema de 2 (primer tramo fijo encontrado + último tramo variable) y mostrar un toast de aviso.
+5. Helper text: "Cada año el coste de tu seguro y otras bonificaciones sube un X% por inflación".
 
----
+**`src/pages/Index.tsx`** y **`src/pages/ClientComparison.tsx`**: pasar `inflationRate={defaults.inflationRate ?? operationInflation}` al componente `CostBreakdown`.
+
+### Parte 3 — Verificación lógica
+
+- Confirmar que `calcTotalLinkageCost` sigue aplicando inflación compuesta correctamente sobre `annualCostEUR` de cada linkage activa (ya lo hace, líneas 105-118 de `mortgageCalc.ts`).
+- Tras quitar `calcInsuranceCost`, los totales bajan en el monto que duplicaba — el coste real ahora coincide con la suma visible de las bonificaciones (incluidos seguros del banco).
 
 ### Resultado
 
-- **Inflación en seguros**: se suma al coste total y se ve en el desglose; valor IPC actualizado diariamente desde fuente oficial.
-- **Mixta**: el gestor solo introduce 3 datos (TIN, años fijos, diferencial). Cero edición de tramos manual, cero desincronización posible.
+- Panel del gestor más limpio: 4 campos en "Datos de la operación", los seguros se gestionan donde corresponden (en la oferta de cada banco como bonificaciones).
+- "Coste total aproximado" deja de duplicar el seguro y muestra explícitamente la evolución año a año por inflación, justificando visualmente el peso del IPC en el cálculo.
 
