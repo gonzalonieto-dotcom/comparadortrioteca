@@ -52,8 +52,9 @@ const Index = () => {
     setOffers((prev) => prev.filter((o) => o.id !== offerId));
   }, []);
 
+  const inflationRate = 3.0;
   const computedOffers: ComputedOffer[] = useMemo(
-    () => offers.map((o) => computeOffer(o, defaults)),
+    () => offers.map((o) => computeOffer(o, defaults, inflationRate)),
     [offers, defaults]
   );
 
@@ -121,9 +122,9 @@ const Index = () => {
                 Esto es lo que pagarás en total durante los {defaults.termYears} años: intereses al banco + coste de bonificaciones + otros gastos. Cuanto menor, mejor para ti.
               </p>
             </div>
-            <CostBreakdown computedOffers={computedOffers} />
+            <CostBreakdown computedOffers={computedOffers} inflationRate={inflationRate} />
             <div className="mt-4">
-              <InterestBarChart computedOffers={computedOffers} recommendedId={recommended?.offer.id} defaults={defaults} partialPayments={partialPayments} onPartialPaymentsChange={setPartialPayments} />
+              <InterestBarChart computedOffers={computedOffers} recommendedId={recommended?.offer.id} defaults={defaults} partialPayments={partialPayments} onPartialPaymentsChange={setPartialPayments} inflationRate={inflationRate} />
             </div>
           </section>
 

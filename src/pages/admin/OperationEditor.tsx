@@ -36,7 +36,7 @@ const OperationEditor = () => {
 
   const [op, setOp] = useState({
     purchase_price: 0, appraisal_value: 0, loan_amount: 0, term_years: 30,
-    home_insurance_annual: 0, life_insurance_annual: 0, appraisal_cost: 0,
+    appraisal_cost: 0,
     client_name: "", inflation_rate: 3.0,
   });
   const [shareToken, setShareToken] = useState("");
@@ -102,8 +102,6 @@ const OperationEditor = () => {
         appraisal_value: dbOp.appraisal_value,
         loan_amount: dbOp.loan_amount,
         term_years: dbOp.term_years,
-        home_insurance_annual: dbOp.home_insurance_annual,
-        life_insurance_annual: dbOp.life_insurance_annual,
         appraisal_cost: dbOp.appraisal_cost,
         client_name: dbOp.client_name || "",
         inflation_rate: (dbOp as any).inflation_rate ?? 3.0,
@@ -338,28 +336,8 @@ const OperationEditor = () => {
                   placeholder="3.0"
                 />
                 <p className="text-[10px] text-muted-foreground mt-0.5">
-                  Aplicada anualmente a seguros del operativo
+                  Aplicada anualmente a las bonificaciones (incluye seguros) de cada oferta
                 </p>
-              </div>
-              <div>
-                <Label>Seguro hogar €/año</Label>
-                <Input
-                  type="number"
-                  step="0.01"
-                  value={op.home_insurance_annual}
-                  onFocus={(e) => e.target.select()}
-                  onChange={(e) => setOp(prev => ({ ...prev, home_insurance_annual: +e.target.value }))}
-                />
-              </div>
-              <div>
-                <Label>Seguro vida €/año</Label>
-                <Input
-                  type="number"
-                  step="0.01"
-                  value={op.life_insurance_annual}
-                  onFocus={(e) => e.target.select()}
-                  onChange={(e) => setOp(prev => ({ ...prev, life_insurance_annual: +e.target.value }))}
-                />
               </div>
             </div>
           </CardContent>

@@ -108,6 +108,7 @@ const ClientComparison = () => {
   const [partialPayments, setPartialPayments] = useState<PartialPayment[]>([]);
   const [operationId, setOperationId] = useState<string | null>(null);
   const [clientName, setClientName] = useState<string | null>(null);
+  const [inflationRate, setInflationRate] = useState<number>(3.0);
   const whyRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -132,6 +133,7 @@ const ClientComparison = () => {
         setOffers(o);
         setOperationId(data.operation.id);
         setClientName(data.operation.client_name || null);
+        setInflationRate(data.operation.inflation_rate ?? 3.0);
       })
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false));
@@ -152,8 +154,8 @@ const ClientComparison = () => {
   const handleAdvance = useCallback((offerId: string) => { setAdvanceOfferId(offerId); setAdvanceOpen(true); }, []);
 
   const computedOffers: ComputedOffer[] = useMemo(
-    () => defaults ? offers.map((o) => computeOffer(o, defaults)) : [],
-    [offers, defaults]
+    () => defaults ? offers.map((o) => computeOffer(o, defaults, inflationRate)) : [],
+    [offers, defaults, inflationRate]
   );
 
   const sortedByCost = useMemo(() => [...computedOffers].sort((a, b) => a.totalCost - b.totalCost), [computedOffers]);
@@ -265,9 +267,9 @@ const ClientComparison = () => {
               <h2 className="text-lg font-semibold text-foreground">Coste total aproximado</h2>
               <p className="text-sm text-muted-foreground mt-1">Lo que pagarás en total durante los {defaults.termYears} años.</p>
             </div>
-            <CostBreakdown computedOffers={computedOffers} />
+            <CostBreakdown computedOffers={computedOffers} inflationRate={inflationRate} />
             <div className="mt-5">
-              <InterestBarChart computedOffers={computedOffers} recommendedId={recommended?.offer.id} defaults={defaults} partialPayments={partialPayments} onPartialPaymentsChange={setPartialPayments} />
+              <InterestBarChart computedOffers={computedOffers} recommendedId={recommended?.offer.id} defaults={defaults} partialPayments={partialPayments} onPartialPaymentsChange={setPartialPayments} inflationRate={inflationRate} />
             </div>
           </section>
 
