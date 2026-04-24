@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import {
@@ -47,8 +47,17 @@ const OperationEditor = () => {
     if (!authLoading && !user) navigate("/admin/login");
   }, [user, authLoading, navigate]);
 
+  // Load operation data ONCE per id. We deliberately don't depend on the
+  // `user` object reference: Supabase's onAuthStateChange may fire on tab
+  // focus and produce a new User reference, which would otherwise re-run
+  // loadData() and overwrite the form with the last saved values, wiping
+  // anything the gestor was typing.
+  const loadedIdRef = useRef<string | null>(null);
   useEffect(() => {
-    if (user && id) loadData();
+    if (!user || !id) return;
+    if (loadedIdRef.current === id) return;
+    loadedIdRef.current = id;
+    loadData();
   }, [user, id]);
 
   // Fetch Euribor and inflation on mount

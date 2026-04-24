@@ -11,14 +11,27 @@ export function useAuth() {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (_event, session) => {
         setSession(session);
-        setUser(session?.user ?? null);
+        // Only update `user` when the identity actually changes. Supabase
+        // fires TOKEN_REFRESHED / SIGNED_IN events when the tab regains
+        // focus, which would otherwise create a new User reference and
+        // trigger downstream effects that reload form data and wipe
+        // unsaved changes.
+        setUser((prev) => {
+          const next = session?.user ?? null;
+          if (prev?.id === next?.id) return prev;
+          return next;
+        });
         setLoading(false);
       }
     );
 
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
-      setUser(session?.user ?? null);
+      setUser((prev) => {
+        const next = session?.user ?? null;
+        if (prev?.id === next?.id) return prev;
+        return next;
+      });
       setLoading(false);
     });
 
