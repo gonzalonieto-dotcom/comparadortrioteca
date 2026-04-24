@@ -223,9 +223,6 @@ export interface ComputedOffer {
   annualLinkageCost: number;
   variableRate?: number;
   periodBreakdown: PeriodBreakdown[];
-  insuranceCostWithInflation?: number;
-  insuranceCostNoInflation?: number;
-  totalInsuranceCost?: number;
 }
 
 export function computeOffer(offer: Offer, defaults: OperationDefaults, inflationRate?: number): ComputedOffer {
@@ -252,11 +249,6 @@ export function computeOffer(offer: Offer, defaults: OperationDefaults, inflatio
     }
   }
 
-  // Operation-level insurance: home + life from defaults, optionally inflated.
-  const totalInsuranceCost = calcInsuranceCost(effectiveDefaults, inflationRate);
-  const insuranceCostNoInflation = calcInsuranceCost(effectiveDefaults, 0);
-  const insuranceCostWithInflation = inflationRate && inflationRate > 0 ? totalInsuranceCost : undefined;
-
   return {
     offer,
     bonifiedTIN,
@@ -269,9 +261,6 @@ export function computeOffer(offer: Offer, defaults: OperationDefaults, inflatio
     annualLinkageCost,
     variableRate,
     periodBreakdown,
-    insuranceCostWithInflation,
-    insuranceCostNoInflation,
-    totalInsuranceCost,
   };
 }
 
@@ -287,7 +276,6 @@ export function calcCumulativeCostByYear(
   inflationRate?: number
 ): YearlyCumulativeCost[] {
   const inf = (inflationRate ?? 0) / 100;
-  const annualInsurance = (defaults.homeInsuranceAnnualDefault ?? 0) + (defaults.lifeInsuranceAnnualDefault ?? 0);
   const years: YearlyCumulativeCost[] = [];
   for (let y = 1; y <= defaults.termYears; y++) {
     const row: YearlyCumulativeCost = { year: y };
@@ -300,16 +288,11 @@ export function calcCumulativeCostByYear(
       for (let i = 0; i < y; i++) {
         linkageCostToYear += co.annualLinkageCost * Math.pow(1 + inf, i);
       }
-      // Compound inflation on annual operation insurance
-      let insuranceToYear = 0;
-      for (let i = 0; i < y; i++) {
-        insuranceToYear += annualInsurance * Math.pow(1 + inf, i);
-      }
       const otherCostsToYear =
         co.offer.upfrontCostsEUR +
         defaults.appraisalCostEUR +
         co.offer.monthlyAccountCostEUR * y * 12;
-      row[co.offer.id] = interestToYear + linkageCostToYear + insuranceToYear + otherCostsToYear;
+      row[co.offer.id] = interestToYear + linkageCostToYear + otherCostsToYear;
     }
     years.push(row);
   }
