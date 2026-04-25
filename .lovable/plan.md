@@ -1,72 +1,62 @@
+## Plan: dashboard de admin con métricas del equipo
 
+### Decisión de alcance (importante)
 
-## Plan: evitar que se borren los datos del editor al cambiar de pestaña
+La tabla `operations` tiene RLS estricto: cada usuario sólo ve sus propias comparativas. Por tanto, una consulta directa desde el front como admin **no devolvería las comparativas de los demás gestores**, sólo las suyas.
 
-### Diagnóstico
+Como un admin normalmente **no crea comparativas él mismo** (eso lo hacen los gestores), el dashboard sólo tiene sentido si muestra datos **de todo el equipo**. Para eso se usa una **edge function con service role** (mismo patrón que `list-gestors` / `manage-gestor`).
 
-Cuando el gestor cambia de pestaña del navegador (o al móvil/otra app) y vuelve, el formulario de la comparativa se **resetea a los últimos datos guardados en BD** y pierde todo lo no guardado.
+### Lo que pediste + propuesta de mejora
 
-**Causa raíz**: el hook `useAuth` se suscribe a `supabase.auth.onAuthStateChange`. Supabase dispara eventos como `TOKEN_REFRESHED` y `SIGNED_IN` periódicamente (cada vez que se refresca el token, lo cual se acelera al volver a una pestaña suspendida). Cada evento ejecuta `setUser(session?.user ?? null)`, lo que crea un **nuevo objeto User** (referencia distinta aunque sea el mismo usuario).
+Pediste dos métricas:
+1. Fecha y hora de creación de la última comparativa.
+2. Número de comparativas hechas en el mes actual.
 
-En `src/pages/admin/OperationEditor.tsx`:
+**Propuesta**: con muy poco coste extra añadir un par de métricas que dan contexto real al admin para supervisar al equipo. Si prefieres dejarlo en lo mínimo dímelo y quito las extras.
 
-```ts
-useEffect(() => {
-  if (user && id) loadData();   // ← sobrescribe el estado del formulario
-}, [user, id]);                  // ← se re-dispara con cada token refresh
+KPIs propuestos (todos en una franja de 4 cards arriba):
+
+```text
+┌──────────────────┬──────────────────┬──────────────────┬──────────────────┐
+│ Última creada    │ Este mes         │ Mes anterior     │ Publicadas       │
+│ hace 2 h         │ 23               │ 18  (+27% vs.)   │ 14 / 23 (61%)    │
+│ 24/04/26 14:32   │ comparativas     │                  │ ratio publicación│
+│ por María G.     │                  │                  │                  │
+└──────────────────┴──────────────────┴──────────────────┴──────────────────┘
 ```
 
-Resultado: `loadData()` recarga `op` y `offers` desde la BD, machacando lo que el gestor estaba escribiendo. Además `expandedIndex` se mantiene pero la oferta que estaba abierta vuelve a sus valores guardados.
+Y debajo, una tabla compacta **"Actividad por gestor (mes en curso)"** con: gestor, comparativas creadas, publicadas, último alta. Es 100% gratis ya que el endpoint ya trae todo agregado.
 
-### Solución
+### Implementación
 
-#### 1. Estabilizar `useAuth` por id de usuario (raíz del problema)
+**1. Nueva edge function `admin-stats`** (`verify_jwt = true`, default)
+- Verifica el JWT del usuario.
+- Comprueba con la `service_role` que el caller tiene rol `admin` en `user_roles`. Si no, 403.
+- Consulta con service role:
+  - última fila de `operations` (`order by created_at desc limit 1`) + email del `created_by` desde `auth.users`.
+  - count de `operations` del mes en curso (UTC, `created_at >= date_trunc('month', now())`).
+  - count del mes anterior para comparar.
+  - count total + count publicadas del mes en curso.
+  - agregado por gestor del mes en curso (created/published/last).
+- Devuelve un único JSON con todo ya formateado.
 
-`src/hooks/useAuth.ts`: solo actualizar el estado `user` cuando el **id** cambia realmente, no en cada refresh de token. Mantener `session` actualizada (necesaria para llamadas autenticadas) pero `user` referencialmente estable mientras sea el mismo usuario.
+**2. Nueva ruta `/admin/stats`** → `src/pages/admin/AdminDashboard.tsx`
+- Llama a la edge function con el access token (mismo patrón que `UserManagement`).
+- Bloquea con redirect si `!isAdmin` (igual que `UserManagement`).
+- 4 KPI cards arriba + tabla por gestor debajo. Todo en español, formato de fecha `es-ES`, hora `HH:mm`.
+- Botón "Actualizar" para re-fetch manual.
 
-```ts
-supabase.auth.onAuthStateChange((_event, session) => {
-  setSession(session);
-  setUser(prev => {
-    const next = session?.user ?? null;
-    if (prev?.id === next?.id) return prev;   // misma identidad → no re-render
-    return next;
-  });
-  setLoading(false);
-});
-```
+**3. Acceso desde el header de `Operations.tsx`**
+- Añadir botón "Panel admin" (icono `LayoutDashboard`) sólo visible si `isAdmin`, junto a los botones de Checklists/Usuarios que ya existen.
 
-Beneficio colateral: arregla el mismo síntoma en `useRole`, `Operations.tsx`, `ChecklistManager.tsx`, `UserManagement.tsx` (todos dependen de `[user, ...]` en useEffect).
+**4. Registrar la ruta en `src/App.tsx`**
+- `<Route path="/admin/stats" element={<AdminDashboard />} />`.
 
-#### 2. Defensa extra en `OperationEditor.tsx`: cargar solo una vez
-
-Cambiar la dependencia para depender únicamente de `id` y un flag, en vez del objeto `user`:
-
-```ts
-const loadedIdRef = useRef<string | null>(null);
-useEffect(() => {
-  if (!user || !id) return;
-  if (loadedIdRef.current === id) return;   // ya cargado para este id
-  loadedIdRef.current = id;
-  loadData();
-}, [user, id]);
-```
-
-Así, aunque algún día `user` cambiase de referencia por otra causa, el formulario nunca se sobrescribe mientras estemos en la misma operación. Se vuelve a cargar solo si el gestor navega a otra operación distinta.
-
-#### 3. Aplicar el mismo patrón al editor de checklists (también es formulario)
-
-`ChecklistManager.tsx` carga datos en función de `user`. Aplicar el mismo `loadedRef` para no recargar al volver de pestaña.
-
-### Archivos a tocar
-
-- `src/hooks/useAuth.ts` — comparar por `user.id` antes de `setUser`.
-- `src/pages/admin/OperationEditor.tsx` — añadir `loadedIdRef` para no re-llamar `loadData`.
-- `src/pages/admin/ChecklistManager.tsx` — mismo patrón defensivo.
+### Lo que NO toco
+- Esquema de BD: no hace falta crear tablas, se calcula todo en la edge function.
+- RLS existente: se respeta porque el front nunca lee `operations` de otros gestores; siempre va por la function.
+- Lógica de cálculo de hipotecas, comparativas, etc.
 
 ### Resultado
-
-- El gestor puede cambiar de pestaña, contestar un mensaje, volver una hora después, y todo lo que escribió sigue ahí.
-- El botón "Guardar" sigue siendo la única vía para persistir; nada se pierde de forma silenciosa.
-- Sin cambios en BD ni en la lógica de cálculo.
-
+- Sólo los admin ven el botón "Panel admin" en el header → `/admin/stats`.
+- En un vistazo: cuándo se creó la última comparativa (y por quién), volumen del mes, comparación con el mes anterior, ratio de publicación, y desglose por gestor del equipo.
