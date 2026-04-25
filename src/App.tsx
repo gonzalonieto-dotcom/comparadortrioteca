@@ -8,6 +8,7 @@ import Operations from "./pages/admin/Operations";
 import ChecklistManager from "./pages/admin/ChecklistManager";
 import OperationEditor from "./pages/admin/OperationEditor";
 import UserManagement from "./pages/admin/UserManagement";
+import AdminDashboard from "./pages/admin/AdminDashboard";
 import ClientComparison from "./pages/ClientComparison";
 import NotFound from "./pages/NotFound";
 
@@ -35,6 +36,7 @@ const App = () => (
           <Route path="/admin/dashboard" element={<Operations />} />
           <Route path="/admin/dashboard/:id" element={<OperationEditor />} />
           <Route path="/admin/users" element={<UserManagement />} />
+          <Route path="/admin/stats" element={<AdminDashboard />} />
           <Route path="/admin/checklists" element={<ChecklistManager />} />
           <Route path="/c/:token" element={<ClientComparison />} />
           {/* Legacy routes */}

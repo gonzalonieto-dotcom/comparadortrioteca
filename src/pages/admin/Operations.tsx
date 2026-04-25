@@ -10,7 +10,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
-import { Plus, Pencil, Trash2, Copy, LogOut, Eye, EyeOff, Users, ClipboardList } from "lucide-react";
+import { Plus, Pencil, Trash2, Copy, LogOut, Eye, EyeOff, Users, ClipboardList, LayoutDashboard } from "lucide-react";
 import triotecaLogo from "@/assets/trioteca-logo-vert.png";
 
 type InterestRecord = { operation_id: string; bank_name: string };
@@ -117,6 +117,9 @@ const Operations = () => {
           <div className="flex items-center gap-3">
             {isAdmin && (
               <>
+                <Button variant="outline" size="sm" onClick={() => navigate("/admin/stats")}>
+                  <LayoutDashboard className="h-4 w-4 mr-1" />Panel admin
+                </Button>
                 <Button variant="outline" size="sm" onClick={() => navigate("/admin/checklists")}>
                   <ClipboardList className="h-4 w-4 mr-1" />Checklists
                 </Button>
