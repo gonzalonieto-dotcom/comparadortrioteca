@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 import { ArrowLeft, Plus, Trash2, LogOut, Users, KeyRound } from "lucide-react";
@@ -33,6 +34,7 @@ const UserManagement = () => {
   const [showCreate, setShowCreate] = useState(false);
   const [newEmail, setNewEmail] = useState("");
   const [newPassword, setNewPassword] = useState("");
+  const [newRoles, setNewRoles] = useState<string[]>(["gestor"]);
   const [creating, setCreating] = useState(false);
 
   useEffect(() => {
@@ -71,6 +73,10 @@ const UserManagement = () => {
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (newRoles.length === 0) {
+      toast.error("Debes asignar al menos un rol");
+      return;
+    }
     setCreating(true);
     try {
       const { data: sessionData } = await supabase.auth.getSession();
@@ -78,7 +84,7 @@ const UserManagement = () => {
 
       const res = await supabase.functions.invoke("manage-gestor", {
         headers: { Authorization: `Bearer ${token}` },
-        body: { action: "create", email: newEmail, password: newPassword },
+        body: { action: "create", email: newEmail, password: newPassword, roles: newRoles },
       });
 
       if (res.error) throw new Error(res.error.message);
@@ -87,6 +93,7 @@ const UserManagement = () => {
       toast.success("Gestor creado correctamente");
       setNewEmail("");
       setNewPassword("");
+      setNewRoles(["gestor"]);
       setShowCreate(false);
       loadUsers();
     } catch (err: any) {
@@ -94,6 +101,10 @@ const UserManagement = () => {
     } finally {
       setCreating(false);
     }
+  };
+
+  const toggleRole = (role: string) => {
+    setNewRoles((prev) => (prev.includes(role) ? prev.filter((r) => r !== role) : [...prev, role]));
   };
 
   const handleDelete = async () => {
@@ -184,6 +195,25 @@ const UserManagement = () => {
                       <div className="space-y-1">
                         <Label htmlFor="new-password">Contraseña</Label>
                         <Input id="new-password" type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} required minLength={6} placeholder="Mínimo 6 caracteres" />
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Roles asignados</Label>
+                      <div className="flex gap-4">
+                        <label className="flex items-center gap-2 cursor-pointer">
+                          <Checkbox
+                            checked={newRoles.includes("gestor")}
+                            onCheckedChange={() => toggleRole("gestor")}
+                          />
+                          <span className="text-sm">Gestor</span>
+                        </label>
+                        <label className="flex items-center gap-2 cursor-pointer">
+                          <Checkbox
+                            checked={newRoles.includes("admin")}
+                            onCheckedChange={() => toggleRole("admin")}
+                          />
+                          <span className="text-sm">Admin</span>
+                        </label>
                       </div>
                     </div>
                     <div className="flex gap-2">
