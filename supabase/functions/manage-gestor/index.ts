@@ -44,7 +44,7 @@ Deno.serve(async (req) => {
     }
 
     const body = await req.json();
-    const { action, email, user_id, password } = body;
+    const { action, email, user_id, password, roles } = body;
 
     if (action === "create") {
       if (!email || !password) {
@@ -62,8 +62,15 @@ Deno.serve(async (req) => {
         return new Response(JSON.stringify({ error: createError.message }), { status: 400, headers: corsHeaders });
       }
 
-      // Assign gestor role
-      await adminClient.from("user_roles").insert({ user_id: newUser.user.id, role: "gestor" });
+      // Assign requested roles (default to gestor)
+      const validRoles = ["admin", "gestor"];
+      const requestedRoles: string[] = Array.isArray(roles) && roles.length > 0
+        ? roles.filter((r: string) => validRoles.includes(r))
+        : ["gestor"];
+      const uniqueRoles = Array.from(new Set(requestedRoles));
+      await adminClient
+        .from("user_roles")
+        .insert(uniqueRoles.map((role) => ({ user_id: newUser.user.id, role })));
 
       return new Response(JSON.stringify({ success: true, user_id: newUser.user.id }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
