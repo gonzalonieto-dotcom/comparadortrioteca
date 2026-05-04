@@ -12,7 +12,7 @@ const TotalCostChart = ({ ofertas }: TotalCostChartProps) => {
   const data = [...ofertas]
     .sort((a, b) => a.costeTotalAproximado - b.costeTotalAproximado)
     .map((o) => ({
-      name: o.banco.split(" ").pop(),
+      name: o.banco,
       coste: o.costeTotalAproximado,
       fill: o.esRecomendada ? "hsl(var(--primary))" : "hsl(var(--muted-foreground) / 0.3)",
     }));
@@ -42,7 +42,7 @@ const TotalCostChart = ({ ofertas }: TotalCostChartProps) => {
               tick={{ fontSize: 13, fill: "hsl(var(--card-foreground))", fontWeight: 500 }}
               axisLine={false}
               tickLine={false}
-              width={80}
+              width={120}
             />
             <Tooltip
               formatter={(value: number) => [formatCurrency(value), "Coste total"]}
