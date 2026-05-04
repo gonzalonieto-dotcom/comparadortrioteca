@@ -29,7 +29,7 @@ const fmt = (n: number) =>
 const StackedBarTab = ({ computedOffers, recommendedId, inflationRate }: { computedOffers: ComputedOffer[]; recommendedId?: string; inflationRate?: number }) => {
   const sorted = [...computedOffers].sort((a, b) => a.totalInterest - b.totalInterest);
   const data = sorted.map((co) => ({
-    name: co.offer.bankName.split(" ").pop(),
+    name: co.offer.bankName,
     fullName: co.offer.bankName,
     interest: co.totalInterest,
     bonifications: co.totalLinkageCost,
@@ -48,7 +48,7 @@ const StackedBarTab = ({ computedOffers, recommendedId, inflationRate }: { compu
           <BarChart data={data} layout="vertical" margin={{ left: 10, right: 30 }}>
             <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="hsl(var(--border))" />
             <XAxis type="number" tickFormatter={(v) => `${(v / 1000).toFixed(0)}k €`} tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} axisLine={false} tickLine={false} />
-            <YAxis type="category" dataKey="name" tick={{ fontSize: 12, fill: "hsl(var(--card-foreground))", fontWeight: 500 }} axisLine={false} tickLine={false} width={80} />
+            <YAxis type="category" dataKey="name" tick={{ fontSize: 12, fill: "hsl(var(--card-foreground))", fontWeight: 500 }} axisLine={false} tickLine={false} width={120} />
             <RTooltip
               formatter={(value: number, name: string) => [fmt(value), name === "Intereses" ? "Intereses totales" : "Bonificaciones"]}
               labelFormatter={(l) => data.find((d) => d.name === l)?.fullName ?? l}
