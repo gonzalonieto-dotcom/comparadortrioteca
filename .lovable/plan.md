@@ -1,62 +1,37 @@
-## Plan: dashboard de admin con métricas del equipo
+## Problema
 
-### Decisión de alcance (importante)
+En el gráfico "Intereses vs bonificaciones" (componente `InterestBarChart`) y en `TotalCostChart`, el nombre del banco que aparece en el eje Y se abrevia tomando solo la **última palabra** del nombre:
 
-La tabla `operations` tiene RLS estricto: cada usuario sólo ve sus propias comparativas. Por tanto, una consulta directa desde el front como admin **no devolvería las comparativas de los demás gestores**, sólo las suyas.
-
-Como un admin normalmente **no crea comparativas él mismo** (eso lo hacen los gestores), el dashboard sólo tiene sentido si muestra datos **de todo el equipo**. Para eso se usa una **edge function con service role** (mismo patrón que `list-gestors` / `manage-gestor`).
-
-### Lo que pediste + propuesta de mejora
-
-Pediste dos métricas:
-1. Fecha y hora de creación de la última comparativa.
-2. Número de comparativas hechas en el mes actual.
-
-**Propuesta**: con muy poco coste extra añadir un par de métricas que dan contexto real al admin para supervisar al equipo. Si prefieres dejarlo en lo mínimo dímelo y quito las extras.
-
-KPIs propuestos (todos en una franja de 4 cards arriba):
-
-```text
-┌──────────────────┬──────────────────┬──────────────────┬──────────────────┐
-│ Última creada    │ Este mes         │ Mes anterior     │ Publicadas       │
-│ hace 2 h         │ 23               │ 18  (+27% vs.)   │ 14 / 23 (61%)    │
-│ 24/04/26 14:32   │ comparativas     │                  │ ratio publicación│
-│ por María G.     │                  │                  │                  │
-└──────────────────┴──────────────────┴──────────────────┴──────────────────┘
+```ts
+name: co.offer.bankName.split(" ").pop()
 ```
 
-Y debajo, una tabla compacta **"Actividad por gestor (mes en curso)"** con: gestor, comparativas creadas, publicadas, último alta. Es 100% gratis ya que el endpoint ya trae todo agregado.
+Esto provoca renombrados incorrectos y peligrosos para el cliente:
 
-### Implementación
+- "Laboral Kutxa" → **"Kutxa"** (se confunde con Kutxabank, que es otro banco)
+- "Global Caja" → **"Caja"**
+- "Caixa Popular" → **"Popular"**
+- "Banco Santander" → **"Santander"** (este sí es aceptable)
 
-**1. Nueva edge function `admin-stats`** (`verify_jwt = true`, default)
-- Verifica el JWT del usuario.
-- Comprueba con la `service_role` que el caller tiene rol `admin` en `user_roles`. Si no, 403.
-- Consulta con service role:
-  - última fila de `operations` (`order by created_at desc limit 1`) + email del `created_by` desde `auth.users`.
-  - count de `operations` del mes en curso (UTC, `created_at >= date_trunc('month', now())`).
-  - count del mes anterior para comparar.
-  - count total + count publicadas del mes en curso.
-  - agregado por gestor del mes en curso (created/published/last).
-- Devuelve un único JSON con todo ya formateado.
+Verificado en BD: en `offers.bank_name` los nombres están bien guardados como "Laboral Kutxa" y "Kutxabank" — el bug es puramente de presentación en los charts.
 
-**2. Nueva ruta `/admin/stats`** → `src/pages/admin/AdminDashboard.tsx`
-- Llama a la edge function con el access token (mismo patrón que `UserManagement`).
-- Bloquea con redirect si `!isAdmin` (igual que `UserManagement`).
-- 4 KPI cards arriba + tabla por gestor debajo. Todo en español, formato de fecha `es-ES`, hora `HH:mm`.
-- Botón "Actualizar" para re-fetch manual.
+## Solución
 
-**3. Acceso desde el header de `Operations.tsx`**
-- Añadir botón "Panel admin" (icono `LayoutDashboard`) sólo visible si `isAdmin`, junto a los botones de Checklists/Usuarios que ya existen.
+Mostrar el **nombre completo** del banco en el eje Y de los gráficos, ajustando el ancho del eje para que quepa sin solaparse.
 
-**4. Registrar la ruta en `src/App.tsx`**
-- `<Route path="/admin/stats" element={<AdminDashboard />} />`.
+### Cambios
 
-### Lo que NO toco
-- Esquema de BD: no hace falta crear tablas, se calcula todo en la edge function.
-- RLS existente: se respeta porque el front nunca lee `operations` de otros gestores; siempre va por la function.
-- Lógica de cálculo de hipotecas, comparativas, etc.
+**1. `src/components/InterestBarChart.tsx`** (línea 32)
+- Cambiar `name: co.offer.bankName.split(" ").pop()` por `name: co.offer.bankName`.
+- Aumentar el `width` del `<YAxis>` (de su valor actual a ~110-120) para acomodar nombres largos como "Laboral Kutxa" o "Caixa Popular".
+- Revisar las otras pestañas del mismo componente (líneas 182, 187, 273, 345, 347) por si replican la abreviación; el `Tooltip` y `Legend` ya usan `bankName` completo, así que solo afecta al eje.
 
-### Resultado
-- Sólo los admin ven el botón "Panel admin" en el header → `/admin/stats`.
-- En un vistazo: cuándo se creó la última comparativa (y por quién), volumen del mes, comparación con el mes anterior, ratio de publicación, y desglose por gestor del equipo.
+**2. `src/components/TotalCostChart.tsx`** (línea 15)
+- Mismo cambio: `name: o.banco` en vez de `o.banco.split(" ").pop()`.
+- Aumentar `width` del `<YAxis>` de 80 a ~110.
+
+**3. Sin cambios** en `BankLogo` ni en `bankLogos.tsx`: el favicon de `laboralkutxa.com` ya es el correcto y distinto del de `kutxabank.es`.
+
+### QA
+
+Comprobar visualmente en una comparativa que incluya "Laboral Kutxa" (existen 4 ofertas en BD) que en los gráficos del cliente aparece el nombre completo y no se confunde con "Kutxabank".
