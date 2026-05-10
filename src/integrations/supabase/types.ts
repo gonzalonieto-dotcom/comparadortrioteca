@@ -234,6 +234,7 @@ export type Database = {
           client_name: string
           created_at: string
           created_by: string
+          deleted_at: string | null
           home_insurance_annual: number
           id: string
           inflation_rate: number | null
@@ -250,6 +251,7 @@ export type Database = {
           client_name?: string
           created_at?: string
           created_by: string
+          deleted_at?: string | null
           home_insurance_annual?: number
           id?: string
           inflation_rate?: number | null
@@ -266,6 +268,7 @@ export type Database = {
           client_name?: string
           created_at?: string
           created_by?: string
+          deleted_at?: string | null
           home_insurance_annual?: number
           id?: string
           inflation_rate?: number | null
