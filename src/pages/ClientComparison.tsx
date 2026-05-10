@@ -18,6 +18,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { Skeleton } from "@/components/ui/skeleton";
 import triotecaLogo from "@/assets/trioteca-logo-vert.png";
 import type { PartialPayment } from "@/pages/Index";
+import { supabase } from "@/integrations/supabase/client";
 
 // Client UX components
 import HeroBlock from "@/components/client/HeroBlock";
