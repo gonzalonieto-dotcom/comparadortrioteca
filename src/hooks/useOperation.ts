@@ -61,6 +61,7 @@ export async function fetchOperationByToken(token: string) {
     .from("operations")
     .select("*")
     .eq("share_token", token)
+    .is("deleted_at", null)
     .single();
   if (opErr || !op) throw new Error(opErr?.message || "Operación no encontrada");
 
@@ -144,6 +145,7 @@ export async function fetchMyOperations() {
     .from("operations")
     .select("*")
     .eq("created_by", user.id)
+    .is("deleted_at", null)
     .order("created_at", { ascending: false });
   if (error) throw error;
   return data as DbOperation[];
@@ -174,7 +176,10 @@ export async function updateOperation(id: string, op: Partial<Omit<DbOperation, 
 }
 
 export async function deleteOperation(id: string) {
-  const { error } = await supabase.from("operations").delete().eq("id", id);
+  const { error } = await supabase
+    .from("operations")
+    .update({ deleted_at: new Date().toISOString() })
+    .eq("id", id);
   if (error) throw error;
 }
 
