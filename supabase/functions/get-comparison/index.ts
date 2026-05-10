@@ -31,6 +31,7 @@ Deno.serve(async (req) => {
       .select("*")
       .eq("share_token", token)
       .eq("is_published", true)
+      .is("deleted_at", null)
       .single();
 
     if (opErr || !op) {
