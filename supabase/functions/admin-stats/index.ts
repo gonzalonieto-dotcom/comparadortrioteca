@@ -56,6 +56,7 @@ Deno.serve(async (req) => {
     const { data: lastOpRows } = await adminClient
       .from("operations")
       .select("id, client_name, created_at, created_by, is_published")
+      .is("deleted_at", null)
       .order("created_at", { ascending: false })
       .limit(1);
     const lastOp = lastOpRows?.[0] ?? null;
@@ -70,6 +71,7 @@ Deno.serve(async (req) => {
     const { data: recentOps } = await adminClient
       .from("operations")
       .select("id, created_at, created_by, is_published")
+      .is("deleted_at", null)
       .gte("created_at", startOfPrevMonth);
 
     const ops = recentOps ?? [];
