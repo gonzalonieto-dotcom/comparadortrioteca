@@ -18,6 +18,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { Skeleton } from "@/components/ui/skeleton";
 import triotecaLogo from "@/assets/trioteca-logo-vert.png";
 import type { PartialPayment } from "@/pages/Index";
+import { supabase } from "@/integrations/supabase/client";
 
 // Client UX components
 import HeroBlock from "@/components/client/HeroBlock";
@@ -150,7 +151,17 @@ const ClientComparison = () => {
   }, []);
 
   const handleDeleteOffer = useCallback((offerId: string) => setOffers((prev) => prev.filter((o) => o.id !== offerId)), []);
-  const handleAddExternalOffer = useCallback((offer: Offer) => setOffers((prev) => [...prev, offer]), []);
+  const handleAddExternalOffer = useCallback((offer: Offer) => {
+    setOffers((prev) => [...prev, offer]);
+    if (operationId) {
+      supabase
+        .from("external_offer_events")
+        .insert({ operation_id: operationId, bank_name: offer.bankName })
+        .then(({ error }) => {
+          if (error) console.error("external_offer_events insert failed", error);
+        });
+    }
+  }, [operationId]);
   const handleAdvance = useCallback((offerId: string) => { setAdvanceOfferId(offerId); setAdvanceOpen(true); }, []);
 
   const computedOffers: ComputedOffer[] = useMemo(
