@@ -12,6 +12,7 @@ import { calcMonthlyPayment, calcEstimatedTAE, calcBonifiedTIN, generateAmortiza
 import type { Offer, OperationDefaults, Linkage, MixedRatePeriod } from "@/data/mortgageData";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { NumberInput } from "@/components/ui/number-input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
@@ -313,15 +314,15 @@ const OperationEditor = () => {
               </div>
               <div>
                 <Label>Precio vivienda €</Label>
-                <Input type="number" value={op.purchase_price} onFocus={(e) => e.target.select()} onChange={(e) => setOp(prev => ({ ...prev, purchase_price: +e.target.value }))} />
+                <NumberInput value={op.purchase_price} onValueChange={(v) => setOp(prev => ({ ...prev, purchase_price: v }))} />
               </div>
               <div>
                 <Label>Importe préstamo €</Label>
-                <Input type="number" value={op.loan_amount} onFocus={(e) => e.target.select()} onChange={(e) => setOp(prev => ({ ...prev, loan_amount: +e.target.value }))} />
+                <NumberInput value={op.loan_amount} onValueChange={(v) => setOp(prev => ({ ...prev, loan_amount: v }))} />
               </div>
               <div>
                 <Label>Plazo (años)</Label>
-                <Input type="number" value={op.term_years} onFocus={(e) => e.target.select()} onChange={(e) => setOp(prev => ({ ...prev, term_years: +e.target.value }))} />
+                <NumberInput value={op.term_years} onValueChange={(v) => setOp(prev => ({ ...prev, term_years: v }))} />
               </div>
               <div>
                 <Label className="flex items-center gap-1.5">
@@ -336,12 +337,11 @@ const OperationEditor = () => {
                     {refreshingInflation ? "..." : "↻ IPC"}
                   </button>
                 </Label>
-                <Input
-                  type="number"
+                <NumberInput
                   step="0.1"
                   value={op.inflation_rate}
-                  onFocus={(e) => e.target.select()}
-                  onChange={(e) => setOp(prev => ({ ...prev, inflation_rate: +e.target.value }))}
+                  blankOnZero={false}
+                  onValueChange={(v) => setOp(prev => ({ ...prev, inflation_rate: v }))}
                   placeholder="3.0"
                 />
                 <p className="text-[10px] text-muted-foreground mt-0.5">
