@@ -1,6 +1,7 @@
 import { useState, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { NumberInput } from "@/components/ui/number-input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -253,16 +254,14 @@ const OfferEditor = ({ offer, index, onChange, onDelete, loanAmount, termYears, 
                 <Label className="text-xs">
                   {offer.type === "Mixto" ? "TIN bonificado primer tramo %" : "TIN bonificado %"}
                 </Label>
-                <Input type="number" step="0.01" value={offer.base_tin} onFocus={(e) => e.target.select()} onChange={(e) => update({ base_tin: +e.target.value })} />
+                <NumberInput step="0.01" blankOnZero={false} value={offer.base_tin} onValueChange={(v) => update({ base_tin: v })} />
               </div>
               <div>
                 <Label className="text-xs">Plazo (años)</Label>
-                <Input
-                  type="number"
+                <NumberInput
                   step="1"
-                  value={offer.term_years_override ?? ""}
-                  onFocus={(e) => e.target.select()}
-                  onChange={(e) => update({ term_years_override: e.target.value ? +e.target.value : null })}
+                  value={offer.term_years_override}
+                  onValueChange={(v) => update({ term_years_override: v === 0 ? null : v })}
                   placeholder={`${termYears || 30} — global`}
                 />
               </div>
@@ -285,14 +284,13 @@ const OfferEditor = ({ offer, index, onChange, onDelete, loanAmount, termYears, 
               <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
                 <div>
                   <Label className="text-xs">Años tramo fijo</Label>
-                  <Input
-                    type="number"
+                  <NumberInput
                     step="1"
                     min={1}
                     value={fixedYears}
-                    onFocus={(e) => e.target.select()}
-                    onChange={(e) => {
-                      const next = Math.max(1, +e.target.value || 1);
+                    blankOnZero={false}
+                    onValueChange={(v) => {
+                      const next = Math.max(1, v || 1);
                       setFixedYears(next);
                       const totalYears = offer.term_years_override ?? termYears ?? 30;
                       const currentSpread =
@@ -307,12 +305,11 @@ const OfferEditor = ({ offer, index, onChange, onDelete, loanAmount, termYears, 
                 </div>
                 <div>
                   <Label className="text-xs">Diferencial sobre Euríbor %</Label>
-                  <Input
-                    type="number"
+                  <NumberInput
                     step="0.01"
-                    value={offer.mixedPeriods?.[1]?.spread_over_euribor ?? offer.mixedPeriods?.[0]?.spread_over_euribor ?? ""}
-                    onChange={(e) => {
-                      const spread = e.target.value ? +e.target.value : null;
+                    value={offer.mixedPeriods?.[1]?.spread_over_euribor ?? offer.mixedPeriods?.[0]?.spread_over_euribor ?? null}
+                    onValueChange={(v) => {
+                      const spread = v === 0 ? null : v;
                       const totalYears = offer.term_years_override ?? termYears ?? 30;
                       onChange({
                         ...offer,
@@ -327,20 +324,18 @@ const OfferEditor = ({ offer, index, onChange, onDelete, loanAmount, termYears, 
                     TIN tramo variable %
                     <Calculator className="h-3 w-3 text-muted-foreground" />
                   </Label>
-                  <Input
-                    type="number"
+                  <NumberInput
                     step="0.01"
                     value={(() => {
                       const spread = offer.mixedPeriods?.find((p) => p.spread_over_euribor !== null)?.spread_over_euribor;
                       const eur = offer.euribor_rate ?? 2.45;
-                      if (spread === undefined || spread === null) return "";
-                      return (eur + spread).toFixed(2);
+                      if (spread === undefined || spread === null) return null;
+                      return +(eur + spread).toFixed(2);
                     })()}
-                    onFocus={(e) => e.target.select()}
-                    onChange={(e) => {
+                    onValueChange={(v) => {
                       // Bidireccional: si el gestor escribe el TIN del tramo
                       // variable, derivamos el diferencial = TIN − Euríbor
-                      const tin = e.target.value ? +e.target.value : null;
+                      const tin = v === 0 ? null : v;
                       const eur = offer.euribor_rate ?? 2.45;
                       const spread = tin === null ? null : +(tin - eur).toFixed(4);
                       const totalYears = offer.term_years_override ?? termYears ?? 30;
@@ -361,19 +356,19 @@ const OfferEditor = ({ offer, index, onChange, onDelete, loanAmount, termYears, 
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
               <div>
                 <Label className="text-xs">Comisión amort. %</Label>
-                <Input type="number" step="0.01" value={offer.amortization_fee_pct} onFocus={(e) => e.target.select()} onChange={(e) => update({ amortization_fee_pct: +e.target.value })} />
+                <NumberInput step="0.01" value={offer.amortization_fee_pct} onValueChange={(v) => update({ amortization_fee_pct: v })} />
               </div>
               <div>
                 <Label className="text-xs">Gastos iniciales €</Label>
-                <Input type="number" step="0.01" value={offer.upfront_costs} onFocus={(e) => e.target.select()} onChange={(e) => update({ upfront_costs: +e.target.value })} />
+                <NumberInput step="0.01" value={offer.upfront_costs} onValueChange={(v) => update({ upfront_costs: v })} />
               </div>
               <div>
                 <Label className="text-xs">Coste cuenta €/mes</Label>
-                <Input type="number" step="0.01" value={offer.monthly_account_cost} onFocus={(e) => e.target.select()} onChange={(e) => update({ monthly_account_cost: +e.target.value })} />
+                <NumberInput step="0.01" value={offer.monthly_account_cost} onValueChange={(v) => update({ monthly_account_cost: v })} />
               </div>
               <div>
                 <Label className="text-xs">Euríbor %</Label>
-                <Input type="number" step="0.01" value={offer.euribor_rate ?? ""} onChange={(e) => update({ euribor_rate: e.target.value ? +e.target.value : null })} placeholder="Auto" />
+                <NumberInput step="0.01" value={offer.euribor_rate} onValueChange={(v) => update({ euribor_rate: v === 0 ? null : v })} placeholder="Auto" />
               </div>
             </div>
 
