@@ -6,26 +6,29 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-const SYSTEM_PROMPT = `Eres un extractor de datos de ofertas hipotecarias bancarias. Analiza el contenido proporcionado (PDF o texto) y extrae los datos de la oferta.
+const SYSTEM_PROMPT = `Eres un extractor de datos de ofertas hipotecarias bancarias. Analiza el contenido proporcionado (PDF o texto) y extrae SOLO los datos que aparezcan de forma literal e inequívoca.
 
 Bancos conocidos: CaixaBank, Ibercaja, BBVA, Kutxabank, Bankinter, Santander, Sabadell, Unicaja, ING, Openbank, EVO.
 Tipos de hipoteca: Fijo, Mixto, Variable.
 
-REGLAS CRÍTICAS:
-1. base_tin debe ser el TIN bonificado (con todos los descuentos de vinculaciones ya aplicados).
-2. Para las vinculaciones, usa EXACTAMENTE estos labels (no uses variaciones):
-   - "Domiciliación de nómina" (para nómina, domiciliación, recibos, etc.)
-   - "Seguro hogar" (para seguro de hogar, seguro multirriesgo hogar, etc.)
-   - "Seguro de vida" (para seguro de vida, seguro vida, etc.)
-   Si hay otras vinculaciones que no encajan en estas 3 categorías, ignóralas.
-3. Para cada vinculación extraída:
-   - discount_weight_pct: cuántos puntos porcentuales (pp) de descuento aporta al TIN. Ejemplo: si sin vinculaciones el TIN es 3.45% y con todas baja a 2.85%, el descuento total es 0.60 pp repartido entre las vinculaciones.
-   - annual_cost: el coste ANUAL en euros de esa vinculación. Si el documento dice un coste mensual (ej: 45€/mes), multiplica por 12.
-4. Si el documento muestra un TIN "sin bonificaciones" y un TIN "con bonificaciones", usa esa diferencia para calcular los pesos de descuento.
-5. Para hipotecas Mixto o Variable, extrae el diferencial sobre Euríbor (spread_over_euribor).
-6. Para Mixto, identifica los tramos con sus años y tipos.
-7. Si no hay vinculaciones explícitas en el documento, devuelve un array vacío de linkages.
-8. amortization_fee_pct: comisión de amortización anticipada. Si no se menciona, pon 0.
+REGLA #0 — PROHIBIDO INVENTAR:
+- Si un dato NO aparece de forma explícita en el documento, OMITE el campo (no lo incluyas en la respuesta). No uses 0, ni valores "típicos", ni inferencias.
+- Usa 0 solo cuando el documento diga literalmente "0 €", "sin comisión", "sin coste", "gratuito" o equivalente.
+- Añade al campo missing_fields el nombre de cada campo solicitado que no encontraste.
+
+REGLAS DE EXTRACCIÓN:
+1. base_tin: TIN bonificado (con todos los descuentos de vinculaciones aplicados). Si el documento solo muestra el TIN sin bonificaciones, OMITE base_tin y anótalo en missing_fields.
+2. Vinculaciones: usa EXACTAMENTE estos labels (no uses variaciones):
+   - "Domiciliación de nómina"
+   - "Seguro hogar"
+   - "Seguro de vida"
+   Si hay otras vinculaciones que no encajan, ignóralas. Si el documento no menciona vinculaciones, devuelve linkages: [].
+3. Por cada vinculación, solo incluye discount_weight_pct si el documento aporta los datos para calcularlo (TIN base y bonificado, o pesos explícitos). Solo incluye annual_cost si el documento da un coste explícito (anual o mensual; mensual ×12). Si falta uno, omítelo.
+4. amortization_fee_pct: incluir SOLO si se menciona; no asumir 0 por defecto.
+5. upfront_costs, monthly_account_cost: idem; no inventar.
+6. euribor_rate (Variable/Mixto): diferencial sobre Euríbor, solo si está explícito.
+7. Para Mixto, identifica tramos con años y tipos solo si están claramente especificados.
+8. advantages: incluir SOLO frases literales del documento. Si no hay texto descriptivo de ventajas, devuelve [].
 
 Usa la herramienta extract_offer_data para devolver los datos extraídos.`;
 
@@ -48,28 +51,28 @@ const toolDef = {
         },
         base_tin: {
           type: "number",
-          description: "TIN bonificado en porcentaje (ej: 2.5 para 2.5%)",
+          description: "TIN bonificado en porcentaje (ej: 2.5 para 2.5%). Omitir si no aparece explícito.",
         },
         amortization_fee_pct: {
           type: "number",
-          description: "Comisión de amortización anticipada en porcentaje",
+          description: "Comisión de amortización anticipada en porcentaje. Omitir si no se menciona.",
         },
         upfront_costs: {
           type: "number",
-          description: "Gastos iniciales en euros",
+          description: "Gastos iniciales en euros. Omitir si no se menciona.",
         },
         monthly_account_cost: {
           type: "number",
-          description: "Coste mensual de la cuenta en euros",
+          description: "Coste mensual de la cuenta en euros. Omitir si no se menciona.",
         },
         euribor_rate: {
           type: "number",
-          description: "Diferencial sobre Euríbor en porcentaje (solo para Variable/Mixto)",
+          description: "Diferencial sobre Euríbor en porcentaje (solo Variable/Mixto). Omitir si no se menciona.",
         },
         advantages: {
           type: "array",
           items: { type: "string" },
-          description: "Lista de ventajas o características destacadas de la oferta",
+          description: "Ventajas literales mencionadas en el documento. Vacío si no hay.",
         },
         linkages: {
           type: "array",
@@ -83,14 +86,14 @@ const toolDef = {
               },
               discount_weight_pct: {
                 type: "number",
-                description: "Porcentaje de descuento que aporta esta vinculación al TIN",
+                description: "Puntos porcentuales de descuento que aporta al TIN. Omitir si no se puede calcular del documento.",
               },
               annual_cost: {
                 type: "number",
-                description: "Coste anual de esta vinculación en euros",
+                description: "Coste anual en euros. Omitir si no se menciona en el documento.",
               },
             },
-            required: ["label", "discount_weight_pct", "annual_cost"],
+            required: ["label"],
             additionalProperties: false,
           },
           description: "Vinculaciones/bonificaciones de la oferta",
@@ -110,8 +113,13 @@ const toolDef = {
           },
           description: "Periodos de tipo mixto (solo si la hipoteca es Mixto)",
         },
+        missing_fields: {
+          type: "array",
+          items: { type: "string" },
+          description: "Nombres de los campos que NO se pudieron extraer del documento (ej: ['base_tin', 'amortization_fee_pct']).",
+        },
       },
-      required: ["bank_name", "type", "base_tin"],
+      required: ["bank_name", "type"],
       additionalProperties: false,
     },
   },
@@ -165,7 +173,7 @@ serve(async (req) => {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
+        model: "google/gemini-2.5-pro",
         messages: [
           { role: "system", content: SYSTEM_PROMPT },
           { role: "user", content: userContent },

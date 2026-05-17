@@ -29,32 +29,40 @@ function matchLinkageLabel(raw: string): string | null {
 }
 
 function mapExtracted(extracted: any): Partial<OfferFormData> {
-  const patch: Partial<OfferFormData> = {
-    bank_name: extracted.bank_name || "",
-    type: extracted.type || "Fijo",
-    base_tin: extracted.base_tin ?? 0,
-    amortization_fee_pct: extracted.amortization_fee_pct ?? 0,
-    upfront_costs: extracted.upfront_costs ?? 0,
-    monthly_account_cost: extracted.monthly_account_cost ?? 0,
-    euribor_rate: extracted.euribor_rate ?? null,
-    advantages: extracted.advantages ?? [],
-  };
+  // Only set fields the extractor actually returned. Missing fields keep
+  // the editor's previous value instead of being overwritten with 0.
+  const patch: Partial<OfferFormData> = {};
+  if (typeof extracted.bank_name === "string" && extracted.bank_name.trim()) {
+    patch.bank_name = extracted.bank_name.trim();
+  }
+  if (extracted.type === "Fijo" || extracted.type === "Mixto" || extracted.type === "Variable") {
+    patch.type = extracted.type;
+  }
+  if (typeof extracted.base_tin === "number") patch.base_tin = extracted.base_tin;
+  if (typeof extracted.amortization_fee_pct === "number") patch.amortization_fee_pct = extracted.amortization_fee_pct;
+  if (typeof extracted.upfront_costs === "number") patch.upfront_costs = extracted.upfront_costs;
+  if (typeof extracted.monthly_account_cost === "number") patch.monthly_account_cost = extracted.monthly_account_cost;
+  if (typeof extracted.euribor_rate === "number") patch.euribor_rate = extracted.euribor_rate;
+  if (Array.isArray(extracted.advantages) && extracted.advantages.length) {
+    patch.advantages = extracted.advantages.filter((a: unknown) => typeof a === "string" && a.trim());
+  }
 
   if (extracted.linkages?.length) {
-    // Build a map keyed by label to aggregate values; fuzzy-match presets
     const map = new Map<string, LinkageFormData>();
     for (const l of extracted.linkages) {
       const matched = matchLinkageLabel(l.label) || l.label;
       const existing = map.get(matched);
+      const weight = typeof l.discount_weight_pct === "number" ? l.discount_weight_pct : 0;
+      const cost = typeof l.annual_cost === "number" ? l.annual_cost : 0;
       if (existing) {
-        existing.discount_weight_pct += l.discount_weight_pct ?? 0;
-        existing.annual_cost += l.annual_cost ?? 0;
+        existing.discount_weight_pct += weight;
+        existing.annual_cost += cost;
       } else {
         map.set(matched, {
           label: matched,
           is_active_default: true,
-          discount_weight_pct: l.discount_weight_pct ?? 0,
-          annual_cost: l.annual_cost ?? 0,
+          discount_weight_pct: weight,
+          annual_cost: cost,
         });
       }
     }
@@ -73,16 +81,38 @@ function mapExtracted(extracted: any): Partial<OfferFormData> {
   return patch;
 }
 
+const FIELD_LABELS: Record<string, string> = {
+  bank_name: "Banco",
+  type: "Tipo",
+  base_tin: "TIN bonificado",
+  amortization_fee_pct: "Comisión de amortización",
+  upfront_costs: "Gastos iniciales",
+  monthly_account_cost: "Coste mensual cuenta",
+  euribor_rate: "Diferencial Euríbor",
+  advantages: "Ventajas",
+  linkages: "Vinculaciones",
+  mixed_periods: "Tramos mixto",
+};
+
+function computeMissing(extracted: any): string[] {
+  const reported = Array.isArray(extracted?.missing_fields)
+    ? extracted.missing_fields.filter((f: unknown): f is string => typeof f === "string")
+    : [];
+  return reported.map((f) => FIELD_LABELS[f] || f);
+}
+
 const PdfDropZone = ({ onExtracted }: Props) => {
   const [status, setStatus] = useState<Status>("idle");
   const [errorMsg, setErrorMsg] = useState("");
   const [fileName, setFileName] = useState("");
   const [textContent, setTextContent] = useState("");
   const [tab, setTab] = useState<string>("pdf");
+  const [missingFields, setMissingFields] = useState<string[]>([]);
 
   const handleExtraction = useCallback(async (body: Record<string, string>) => {
     setStatus("processing");
     setErrorMsg("");
+    setMissingFields([]);
     try {
       const { data, error } = await supabase.functions.invoke("parse-offer-pdf", { body });
       if (error) throw new Error(error.message || "Error al procesar");
@@ -91,6 +121,7 @@ const PdfDropZone = ({ onExtracted }: Props) => {
       if (!extracted) throw new Error("No se recibieron datos");
 
       setStatus("done");
+      setMissingFields(computeMissing(extracted));
       onExtracted(mapExtracted(extracted));
     } catch (e: any) {
       console.error("Extraction error:", e);
@@ -239,6 +270,15 @@ const PdfDropZone = ({ onExtracted }: Props) => {
           )}
         </div>
       </TabsContent>
+
+      {status === "done" && missingFields.length > 0 && (
+        <div className="mt-2 rounded-md border border-amber-500/40 bg-amber-50 dark:bg-amber-950/20 px-3 py-2 text-xs text-amber-900 dark:text-amber-200 flex items-start gap-2">
+          <AlertCircle className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+          <span>
+            <strong>Revisa estos campos:</strong> no se encontraron en el documento y debes completarlos manualmente: {missingFields.join(", ")}.
+          </span>
+        </div>
+      )}
     </Tabs>
   );
 };
