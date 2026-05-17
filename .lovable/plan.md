@@ -1,46 +1,69 @@
 ## Problema
 
-El extractor de ofertas (`parse-offer-pdf`) rellena campos con `0` o valores genéricos cuando no encuentra el dato en el PDF/texto, lo que provoca que el gestor cargue datos inventados (TIN 0, comisiones 0, costes 0, vinculaciones con peso fantasma, etc.). El usuario quiere precisión: **si no está, no inventar**.
+Dos quejas combinadas en los campos numéricos:
 
-Hoy esto ocurre por tres motivos:
+1. Al **crear una comparativa nueva**, el formulario muestra valores por defecto (250.000, 200.000, 30…) en lugar de venir vacíos.
+2. Al **borrar** un valor queda un `0` residual. Al hacer foco no se selecciona, así que cuando el gestor empieza a escribir, los dígitos se añaden *delante* o *detrás* del 0 (terminan con cosas como "01112") y luego tiene que borrar el 0 manualmente.
 
-1. El **system prompt** no prohíbe explícitamente inventar y da defaults ("Si no se menciona, pon 0").
-2. El **tool schema** define los campos numéricos como obligatorios o sin permitir `null`, así que el modelo se ve forzado a inventar un número.
-3. En el cliente (`PdfDropZone.mapExtracted`), si el modelo no devuelve un campo se sustituye por `0` con `?? 0`, perdiendo la distinción entre "no encontrado" y "es cero".
+## Causa
+
+- `<input type="number">` en Chrome **no soporta `select()`** llamado sincrónicamente dentro de `onFocus`. El handler global que añadimos en `src/components/ui/input.tsx` se ejecuta pero el navegador lo ignora silenciosamente. Por eso el "0" sigue ahí cuando el usuario empieza a escribir.
+- Los inputs son **controlados con valor numérico**, por lo que cuando el campo queda vacío, React lo recoge como `0` y lo vuelve a pintar como "0".
+- El editor de operaciones inicializa los campos con valores de `operationDefaults` (250000, 200000, 30) al crear una nueva.
 
 ## Solución
 
-### 1. Reescribir el system prompt (`supabase/functions/parse-offer-pdf/index.ts`)
+### 1. Arreglar la selección al hacer foco (raíz del bug "0 pegado")
 
-- Regla #1: **prohibido inventar**. Si un dato no aparece de forma inequívoca en el documento, omitir el campo (no enviarlo) en vez de poner 0.
-- Eliminar la instrucción actual de "si no se menciona, pon 0".
-- Aclarar que `0` solo debe usarse cuando el documento dice expresamente "0 €" / "sin comisión" / "sin coste".
-- Añadir reglas anti-alucinación: no rellenar `advantages` si no hay un texto literal en el documento; no agregar `linkages` si no aparecen explícitas; no inferir `euribor_rate` si el documento no lo dice.
-- Aclarar cómo derivar `discount_weight_pct` solo cuando el documento muestra TIN base y TIN bonificado (o pesos explícitos); si no, dejar la vinculación con `discount_weight_pct` omitido (no inventado).
+En `src/components/ui/input.tsx`, cambiar la estrategia: cuando `type === "number"`, hacer un *swap temporal* de tipo a `text`, llamar a `select()` y restaurar el tipo a `number`. Este patrón es el único 100% fiable en Chrome para seleccionar todo el contenido de un input numérico.
 
-### 2. Ajustar el tool schema
+```text
+onFocus:
+  if (type === "number") {
+    const el = e.currentTarget;
+    el.type = "text";
+    el.select();
+    el.type = "number";
+  }
+  onFocus?.(e);
+```
 
-- Quitar todos los `required` salvo `bank_name` y `type` (lo mínimo identificable). `base_tin` deja de ser obligatorio: mejor omitido que inventado.
-- En `linkages.items`, solo `label` queda como requerido; `discount_weight_pct` y `annual_cost` opcionales.
-- Mantener `additionalProperties: false`.
+Esto resuelve el caso "tengo que posicionar el cursor a la derecha del 0".
 
-### 3. Subir la calidad del modelo
+### 2. Permitir input vacío en lugar de "0" residual
 
-- Cambiar de `google/gemini-2.5-flash` a `google/gemini-2.5-pro` para extracción (mejor razonamiento sobre documentos densos). Mantener el resto de la llamada igual.
+Los inputs numéricos del editor (`OperationEditor.tsx`, `OfferEditor.tsx`, `LinkageEditor.tsx`, `MixedPeriodEditor.tsx`, `ExternalOfferForm.tsx`) usan el patrón:
 
-### 4. Mapeo en el cliente (`src/components/admin/PdfDropZone.tsx`)
+```text
+value={op.purchase_price}
+onChange={(e) => setOp({ ...op, purchase_price: +e.target.value })}
+```
 
-- Cambiar `mapExtracted` para **no sobrescribir** con `0` los campos no devueltos por el modelo. Solo se incluyen en el `patch` las propiedades que el extractor devolvió. Así, los inputs del editor mantienen su valor actual (o quedan vacíos a la espera del gestor) en lugar de "0 forzado".
-- Igual para `linkages`: si no hay `discount_weight_pct` o `annual_cost` devueltos, dejarlos en `0` solo si el modelo no aportó nada, **pero** marcando visualmente con un placeholder o simplemente dejando 0 (mismo comportamiento UI). Para no inventar, conservar la regla actual de no añadir vinculaciones que el modelo no haya enviado.
-- Retornar también una lista `missing_fields` (derivada en el frontend) y mostrar un aviso compacto debajo del dropzone: "Revisa estos campos, no se encontraron en el documento: TIN, comisión, …". Esto guía al gestor a no firmar a ciegas.
+Lo cambiaremos a un patrón que respete el string vacío:
 
-### 5. (Opcional, mismo cambio) Exponer la lista de campos faltantes desde el backend
+- `value={op.purchase_price === 0 || op.purchase_price == null ? "" : op.purchase_price}` para que **no aparezca "0" por defecto** ni después de borrar.
+- En `onChange`, si el string está vacío, guardar `0` internamente (para no romper cálculos), pero la UI seguirá mostrando vacío hasta que el usuario teclee.
 
-- Añadir al schema un campo `missing_fields: string[]` que el modelo debe rellenar con los nombres de los campos que no encontró. Es redundante con la omisión, pero ayuda a que el gestor lo vea explícito.
+Combinado con el fix de selección, cuando hagas foco sobre un campo con valor 0 (o cualquier número) verás todo seleccionado y empezarás a escribir directamente sin tener que borrar nada.
+
+### 3. Crear comparativa con campos vacíos
+
+En `OperationEditor.tsx`, cuando la ruta es de creación (no hay `id` cargado de la base de datos), inicializar el estado con:
+
+- `purchase_price: 0`
+- `loan_amount: 0`
+- `term_years: 0` (o 30 si queremos mantener un valor "razonable" para plazo; lo dejaré en 0 para coherencia con la regla "no inventar")
+- seguros y tasación: 0
+
+Como ahora los inputs muestran "" cuando el valor es 0, el formulario se verá limpio. Mantengo los defaults previos solo si el usuario explícitamente lo pide más adelante.
 
 ### Archivos a modificar
 
-- `supabase/functions/parse-offer-pdf/index.ts` (prompt + schema + modelo)
-- `src/components/admin/PdfDropZone.tsx` (mapeo sin defaults + aviso de campos faltantes)
+- `src/components/ui/input.tsx` — fix selección con swap de tipo.
+- `src/pages/admin/OperationEditor.tsx` — inputs con value vacío cuando es 0 + defaults vacíos al crear.
+- `src/components/admin/OfferEditor.tsx` — inputs con value vacío cuando es 0.
+- `src/components/admin/LinkageEditor.tsx` — idem.
+- `src/components/admin/MixedPeriodEditor.tsx` — idem.
+- `src/components/ExternalOfferForm.tsx` — idem.
 
-Sin migraciones ni cambios en otras superficies.
+Sin migraciones ni cambios de lógica de cálculo.
