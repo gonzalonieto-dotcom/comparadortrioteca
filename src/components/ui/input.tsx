@@ -14,7 +14,19 @@ const Input = React.forwardRef<HTMLInputElement, React.ComponentProps<"input">>(
         ref={ref}
         onFocus={(e) => {
           if (type === "number") {
-            e.target.select();
+            // Chrome ignores select() on <input type="number"> when called
+            // synchronously inside onFocus. Briefly swap to type="text",
+            // select the contents, then swap back. This is the only fully
+            // reliable way to highlight the whole value so the next keystroke
+            // replaces it (instead of being appended to a stray "0").
+            const el = e.currentTarget;
+            try {
+              el.type = "text";
+              el.select();
+              el.type = "number";
+            } catch {
+              // ignore — fallback to default behaviour
+            }
           }
           onFocus?.(e);
         }}
