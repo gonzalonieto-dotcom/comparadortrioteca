@@ -35,7 +35,7 @@ const OperationEditor = () => {
   const [refreshingInflation, setRefreshingInflation] = useState(false);
 
   const [op, setOp] = useState({
-    purchase_price: 0, appraisal_value: 0, loan_amount: 0, term_years: 30,
+    purchase_price: 0, appraisal_value: 0, loan_amount: 0, term_years: 0,
     appraisal_cost: 0,
     client_name: "", inflation_rate: 3.0,
   });
