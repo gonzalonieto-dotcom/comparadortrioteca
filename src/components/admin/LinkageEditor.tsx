@@ -1,4 +1,5 @@
 import { Input } from "@/components/ui/input";
+import { NumberInput } from "@/components/ui/number-input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
@@ -75,11 +76,11 @@ const LinkageEditor = ({ linkages, onChange }: Props) => {
             </div>
             <div>
               <Label className="text-xs">Peso %</Label>
-              <Input type="number" step="0.01" value={l.discount_weight_pct} onFocus={(e) => e.target.select()} onChange={(e) => update(i, { discount_weight_pct: +e.target.value })} />
+              <NumberInput step="0.01" value={l.discount_weight_pct} onValueChange={(v) => update(i, { discount_weight_pct: v })} />
             </div>
             <div>
               <Label className="text-xs">Coste €/año</Label>
-              <Input type="number" step="0.01" value={l.annual_cost} onFocus={(e) => e.target.select()} onChange={(e) => update(i, { annual_cost: +e.target.value })} />
+              <NumberInput step="0.01" value={l.annual_cost} onValueChange={(v) => update(i, { annual_cost: v })} />
             </div>
             <div className="flex items-end pb-1">
               {!isBase && (

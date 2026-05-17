@@ -1,5 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { NumberInput } from "@/components/ui/number-input";
 import { Label } from "@/components/ui/label";
 import { Plus, Trash2 } from "lucide-react";
 
@@ -46,19 +47,19 @@ const MixedPeriodEditor = ({ periods, onChange, suggestedFixedTIN, suggestedTerm
         <div key={i} className="grid grid-cols-[60px_60px_80px_80px_auto] gap-2 items-end border rounded-lg p-3">
           <div>
             <Label className="text-xs">Desde año</Label>
-            <Input type="number" value={p.from_year} onChange={(e) => update(i, { from_year: +e.target.value })} />
+            <NumberInput value={p.from_year} onValueChange={(v) => update(i, { from_year: v })} />
           </div>
           <div>
             <Label className="text-xs">Hasta año</Label>
-            <Input type="number" value={p.to_year} onChange={(e) => update(i, { to_year: +e.target.value })} placeholder={toYearPlaceholder} />
+            <NumberInput value={p.to_year} onValueChange={(v) => update(i, { to_year: v })} placeholder={toYearPlaceholder} />
           </div>
           <div>
             <Label className="text-xs">TIN fijo %</Label>
-            <Input type="number" step="0.01" value={p.fixed_tin ?? ""} onChange={(e) => update(i, { fixed_tin: e.target.value ? +e.target.value : null })} placeholder={fixedTinPlaceholder} />
+            <NumberInput step="0.01" value={p.fixed_tin} onValueChange={(v) => update(i, { fixed_tin: v === 0 ? null : v })} placeholder={fixedTinPlaceholder} />
           </div>
           <div>
             <Label className="text-xs">Spread Euríbor</Label>
-            <Input type="number" step="0.01" value={p.spread_over_euribor ?? ""} onChange={(e) => update(i, { spread_over_euribor: e.target.value ? +e.target.value : null })} placeholder="-" />
+            <NumberInput step="0.01" value={p.spread_over_euribor} onValueChange={(v) => update(i, { spread_over_euribor: v === 0 ? null : v })} placeholder="-" />
           </div>
           <Button type="button" variant="ghost" size="sm" onClick={() => remove(i)}>
             <Trash2 className="h-4 w-4 text-destructive" />
