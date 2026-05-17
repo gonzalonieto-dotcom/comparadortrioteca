@@ -1,69 +1,25 @@
-## Problema
+Voy a corregir el problema desde la raíz: no basta con seleccionar el contenido al hacer foco; el fallo ocurre porque muchos campos guardan `+e.target.value`, y cuando el input queda vacío eso se convierte automáticamente en `0`.
 
-Dos quejas combinadas en los campos numéricos:
+Plan:
 
-1. Al **crear una comparativa nueva**, el formulario muestra valores por defecto (250.000, 200.000, 30…) en lugar de venir vacíos.
-2. Al **borrar** un valor queda un `0` residual. Al hacer foco no se selecciona, así que cuando el gestor empieza a escribir, los dígitos se añaden *delante* o *detrás* del 0 (terminan con cosas como "01112") y luego tiene que borrar el 0 manualmente.
+1. Crear un manejo común para inputs numéricos
+   - Añadir una variante reutilizable en `src/components/ui/input.tsx` que soporte inputs numéricos controlados sin convertir el vacío en `0` visualmente.
+   - Mantener el comportamiento de seleccionar todo al hacer foco.
+   - Al pulsar Delete/Backspace y dejar el campo vacío, el campo debe quedarse vacío en pantalla.
 
-## Causa
+2. Corregir campos de la comparativa del gestor
+   - Actualizar los campos de `src/pages/admin/OperationEditor.tsx` para mostrar vacío cuando el valor interno sea `0` en campos que parten de cero.
+   - Al escribir un número, se guardará el número correctamente para cálculos y guardado.
+   - Al borrar el campo completo, no reaparecerá el `0` en el input.
 
-- `<input type="number">` en Chrome **no soporta `select()`** llamado sincrónicamente dentro de `onFocus`. El handler global que añadimos en `src/components/ui/input.tsx` se ejecuta pero el navegador lo ignora silenciosamente. Por eso el "0" sigue ahí cuando el usuario empieza a escribir.
-- Los inputs son **controlados con valor numérico**, por lo que cuando el campo queda vacío, React lo recoge como `0` y lo vuelve a pintar como "0".
-- El editor de operaciones inicializa los campos con valores de `operationDefaults` (250000, 200000, 30) al crear una nueva.
+3. Corregir campos de ofertas y bonificaciones
+   - Actualizar `src/components/admin/OfferEditor.tsx`, `src/components/admin/LinkageEditor.tsx` y `src/components/admin/MixedPeriodEditor.tsx` donde hoy se usa `+e.target.value`.
+   - Evitar que comisiones, gastos, TIN, costes, años y bonificaciones vuelvan a mostrar `0` mientras el gestor está editando.
 
-## Solución
+4. Corregir el front de cliente para oferta externa
+   - Actualizar `src/components/ExternalOfferForm.tsx` para que campos con valor inicial `0`, como comisión o bonificaciones añadidas, también puedan borrarse y reescribirse sin dejar un cero pegado.
 
-### 1. Arreglar la selección al hacer foco (raíz del bug "0 pegado")
-
-En `src/components/ui/input.tsx`, cambiar la estrategia: cuando `type === "number"`, hacer un *swap temporal* de tipo a `text`, llamar a `select()` y restaurar el tipo a `number`. Este patrón es el único 100% fiable en Chrome para seleccionar todo el contenido de un input numérico.
-
-```text
-onFocus:
-  if (type === "number") {
-    const el = e.currentTarget;
-    el.type = "text";
-    el.select();
-    el.type = "number";
-  }
-  onFocus?.(e);
-```
-
-Esto resuelve el caso "tengo que posicionar el cursor a la derecha del 0".
-
-### 2. Permitir input vacío en lugar de "0" residual
-
-Los inputs numéricos del editor (`OperationEditor.tsx`, `OfferEditor.tsx`, `LinkageEditor.tsx`, `MixedPeriodEditor.tsx`, `ExternalOfferForm.tsx`) usan el patrón:
-
-```text
-value={op.purchase_price}
-onChange={(e) => setOp({ ...op, purchase_price: +e.target.value })}
-```
-
-Lo cambiaremos a un patrón que respete el string vacío:
-
-- `value={op.purchase_price === 0 || op.purchase_price == null ? "" : op.purchase_price}` para que **no aparezca "0" por defecto** ni después de borrar.
-- En `onChange`, si el string está vacío, guardar `0` internamente (para no romper cálculos), pero la UI seguirá mostrando vacío hasta que el usuario teclee.
-
-Combinado con el fix de selección, cuando hagas foco sobre un campo con valor 0 (o cualquier número) verás todo seleccionado y empezarás a escribir directamente sin tener que borrar nada.
-
-### 3. Crear comparativa con campos vacíos
-
-En `OperationEditor.tsx`, cuando la ruta es de creación (no hay `id` cargado de la base de datos), inicializar el estado con:
-
-- `purchase_price: 0`
-- `loan_amount: 0`
-- `term_years: 0` (o 30 si queremos mantener un valor "razonable" para plazo; lo dejaré en 0 para coherencia con la regla "no inventar")
-- seguros y tasación: 0
-
-Como ahora los inputs muestran "" cuando el valor es 0, el formulario se verá limpio. Mantengo los defaults previos solo si el usuario explícitamente lo pide más adelante.
-
-### Archivos a modificar
-
-- `src/components/ui/input.tsx` — fix selección con swap de tipo.
-- `src/pages/admin/OperationEditor.tsx` — inputs con value vacío cuando es 0 + defaults vacíos al crear.
-- `src/components/admin/OfferEditor.tsx` — inputs con value vacío cuando es 0.
-- `src/components/admin/LinkageEditor.tsx` — idem.
-- `src/components/admin/MixedPeriodEditor.tsx` — idem.
-- `src/components/ExternalOfferForm.tsx` — idem.
-
-Sin migraciones ni cambios de lógica de cálculo.
+Detalle técnico:
+- El bug viene de `+"" === 0`. Cuando el usuario borra el contenido, React recibe `0` y lo vuelve a pintar.
+- La solución será separar el valor visual del valor numérico: `""` mientras el usuario deja el campo vacío, y número real cuando escribe contenido.
+- No cambiaré lógica financiera ni base de datos; solo el comportamiento de edición de inputs.
