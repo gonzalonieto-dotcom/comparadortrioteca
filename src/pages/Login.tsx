@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
 import triotecaLogo from "@/assets/trioteca-logo-vert.png";
+import InstallAppButton from "@/components/InstallAppButton";
 
 const Login = () => {
   const [isSignUp, setIsSignUp] = useState(false);
@@ -38,6 +39,9 @@ const Login = () => {
 
   return (
     <div className="min-h-screen bg-background flex items-center justify-center px-4">
+      <div className="absolute top-4 right-4">
+        <InstallAppButton />
+      </div>
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
           <img src={triotecaLogo} alt="Trioteca" className="h-8 mx-auto mb-4" />
