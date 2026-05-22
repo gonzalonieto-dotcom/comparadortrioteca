@@ -12,6 +12,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { toast } from "sonner";
 import { Plus, Pencil, Trash2, Copy, LogOut, Eye, EyeOff, Users, ClipboardList, LayoutDashboard } from "lucide-react";
 import triotecaLogo from "@/assets/trioteca-logo-vert.png";
+import InstallAppButton from "@/components/InstallAppButton";
 
 type InterestRecord = { operation_id: string; bank_name: string };
 
@@ -129,6 +130,7 @@ const Operations = () => {
               </>
             )}
             <span className="text-xs text-muted-foreground hidden sm:block">{user?.email}</span>
+            <InstallAppButton />
             <Button variant="ghost" size="sm" onClick={() => { signOut(); navigate("/admin/login"); }}>
               <LogOut className="h-4 w-4" />
             </Button>
