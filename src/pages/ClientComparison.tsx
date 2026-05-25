@@ -8,7 +8,6 @@ import OfferTable from "@/components/OfferTable";
 import CostBreakdown from "@/components/CostBreakdown";
 import InterestBarChart from "@/components/InterestBarChart";
 
-import FAQCopilot from "@/components/FAQCopilot";
 import AmortizationTable from "@/components/AmortizationTable";
 import AdvanceModal from "@/components/AdvanceModal";
 import ExternalOfferForm from "@/components/ExternalOfferForm";
@@ -308,9 +307,6 @@ const ClientComparison = () => {
           {recommended && (
             <DecisionSummary computed={recommended} onAdvance={handleAdvance} />
           )}
-
-          {/* 11. FAQ */}
-          <FAQCopilot shareToken={token} />
 
           {(() => {
             const advOffer = offers.find((o) => o.id === advanceOfferId);

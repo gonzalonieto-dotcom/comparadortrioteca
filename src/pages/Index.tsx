@@ -7,7 +7,6 @@ import OfferTable from "@/components/OfferTable";
 import CostBreakdown from "@/components/CostBreakdown";
 import InterestBarChart from "@/components/InterestBarChart";
 import ConsiderationCards from "@/components/ConsiderationCards";
-import FAQCopilot from "@/components/FAQCopilot";
 import AmortizationTable from "@/components/AmortizationTable";
 import AdvanceModal from "@/components/AdvanceModal";
 import ExternalOfferForm from "@/components/ExternalOfferForm";
@@ -151,10 +150,6 @@ const Index = () => {
               <p className="text-sm text-muted-foreground">Resumen rápido de ventajas y puntos a considerar.</p>
             </div>
             <ConsiderationCards offers={offers} />
-          </section>
-
-          <section>
-            <FAQCopilot />
           </section>
 
           {(() => {
