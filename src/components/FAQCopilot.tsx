@@ -12,7 +12,11 @@ interface Message {
 
 const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/mortgage-chat`;
 
-const FAQCopilot = () => {
+interface FAQCopilotProps {
+  shareToken?: string;
+}
+
+const FAQCopilot = ({ shareToken }: FAQCopilotProps = {}) => {
   const [messages, setMessages] = useState<Message[]>([
     {
       role: "assistant",
@@ -39,14 +43,17 @@ const FAQCopilot = () => {
     let assistantSoFar = "";
 
     try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const authToken = session?.access_token ?? import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
       const resp = await fetch(CHAT_URL, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+          Authorization: `Bearer ${authToken}`,
         },
         body: JSON.stringify({
           messages: [...messages, userMsg].map((m) => ({ role: m.role, content: m.content })),
+          share_token: shareToken,
         }),
       });
 
