@@ -28,7 +28,7 @@ Deno.serve(async (req) => {
     // Fetch operation by share_token, must be published
     const { data: op, error: opErr } = await supabase
       .from("operations")
-      .select("id, client_name, purchase_price, loan_amount, appraisal_value, term_years, home_insurance_annual, life_insurance_annual, appraisal_cost, is_published, inflation_rate, share_token, created_at, updated_at")
+      .select("id, client_name, purchase_price, loan_amount, appraisal_value, term_years, home_insurance_annual, life_insurance_annual, appraisal_cost, is_published, inflation_rate, share_token, created_at")
       .eq("share_token", token)
       .eq("is_published", true)
       .is("deleted_at", null)
