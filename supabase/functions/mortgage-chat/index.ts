@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -84,7 +85,64 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const { messages } = await req.json();
+    const body = await req.json();
+    const { messages, share_token } = body ?? {};
+
+    // ─── Auth gate: require a valid Supabase JWT (gestor/admin) OR a valid
+    // share_token tied to a published operation. Rejects anonymous abuse.
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
+    const admin = createClient(supabaseUrl, serviceRoleKey);
+
+    let authorized = false;
+    const authHeader = req.headers.get("Authorization");
+    if (authHeader?.startsWith("Bearer ")) {
+      const token = authHeader.replace("Bearer ", "");
+      // Ignore the anon publishable key — only treat real user JWTs as auth
+      if (token && token !== anonKey) {
+        const userClient = createClient(supabaseUrl, anonKey, {
+          global: { headers: { Authorization: authHeader } },
+        });
+        const { data, error } = await userClient.auth.getClaims(token);
+        if (!error && data?.claims?.sub) authorized = true;
+      }
+    }
+    if (!authorized && typeof share_token === "string" && share_token.length > 0) {
+      const { data: op } = await admin
+        .from("operations")
+        .select("id")
+        .eq("share_token", share_token)
+        .eq("is_published", true)
+        .is("deleted_at", null)
+        .maybeSingle();
+      if (op) authorized = true;
+    }
+    if (!authorized) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Validate messages payload
+    if (!Array.isArray(messages) || messages.length === 0 || messages.length > 40) {
+      return new Response(JSON.stringify({ error: "Invalid messages" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    const totalLen = messages.reduce(
+      (n: number, m: any) => n + (typeof m?.content === "string" ? m.content.length : 0),
+      0,
+    );
+    if (totalLen > 20_000) {
+      return new Response(JSON.stringify({ error: "Payload too large" }), {
+        status: 413,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
 
