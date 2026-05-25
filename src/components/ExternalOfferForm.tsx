@@ -9,11 +9,13 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Plus, Trash2, Building2, Upload, FileCheck, Loader2, ClipboardPaste, CheckCircle2, AlertCircle } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 
 interface ExternalOfferFormProps {
   onAddOffer: (offer: Offer) => void;
   existingExternalOffer?: Offer | null;
   onDeleteOffer?: (offerId: string) => void;
+  shareToken?: string;
 }
 
 const COLORS = [
@@ -25,7 +27,7 @@ const COLORS = [
 ];
 let colorIndex = 0;
 
-const ExternalOfferForm = ({ onAddOffer, existingExternalOffer, onDeleteOffer }: ExternalOfferFormProps) => {
+const ExternalOfferForm = ({ onAddOffer, existingExternalOffer, onDeleteOffer, shareToken }: ExternalOfferFormProps) => {
   const [open, setOpen] = useState(false);
   const [bankName, setBankName] = useState("");
   const [type, setType] = useState<"Fijo" | "Mixto" | "Variable">("Fijo");
@@ -80,12 +82,17 @@ const ExternalOfferForm = ({ onAddOffer, existingExternalOffer, onDeleteOffer }:
     setPdfParsing(true);
     try {
       const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
+      const { data: { session } } = await supabase.auth.getSession();
+      const headers: Record<string, string> = { "Content-Type": "application/json" };
+      if (session?.access_token) {
+        headers["Authorization"] = `Bearer ${session.access_token}`;
+      }
       const res = await fetch(
         `https://${projectId}.supabase.co/functions/v1/parse-offer-pdf`,
         {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(body),
+          headers,
+          body: JSON.stringify({ ...body, share_token: shareToken }),
         }
       );
 
@@ -102,7 +109,7 @@ const ExternalOfferForm = ({ onAddOffer, existingExternalOffer, onDeleteOffer }:
     } finally {
       setPdfParsing(false);
     }
-  }, []);
+  }, [shareToken]);
 
   const handlePdfFile = useCallback(async (file: File) => {
     if (!file.type.includes("pdf")) {

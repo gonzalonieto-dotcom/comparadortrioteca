@@ -268,6 +268,7 @@ const ClientComparison = () => {
                 onAddOffer={handleAddExternalOffer}
                 existingExternalOffer={offers.find((o) => o.isExternal) || null}
                 onDeleteOffer={handleDeleteOffer}
+                shareToken={token}
               />
             </div>
           </section>
@@ -309,7 +310,7 @@ const ClientComparison = () => {
           )}
 
           {/* 11. FAQ */}
-          <FAQCopilot />
+          <FAQCopilot shareToken={token} />
 
           {(() => {
             const advOffer = offers.find((o) => o.id === advanceOfferId);

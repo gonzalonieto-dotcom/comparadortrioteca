@@ -203,7 +203,7 @@ const SharedOperation = () => {
             />
           </section>
 
-          <section><ExternalOfferForm onAddOffer={handleAddOffer} /></section>
+          <section><ExternalOfferForm onAddOffer={handleAddOffer} shareToken={token} /></section>
 
           {/* 7. Cost breakdown */}
           <section>
@@ -252,7 +252,7 @@ const SharedOperation = () => {
           )}
 
           {/* 11. FAQ */}
-          <section><FAQCopilot /></section>
+          <section><FAQCopilot shareToken={token} /></section>
 
           {(() => {
             const advOffer = offers.find((o) => o.id === advanceOfferId);

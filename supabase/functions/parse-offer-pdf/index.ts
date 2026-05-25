@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -131,10 +132,62 @@ serve(async (req) => {
   }
 
   try {
-    const { pdf_base64, text_content } = await req.json();
+    const body = await req.json();
+    const { pdf_base64, text_content, share_token } = body ?? {};
+
+    // ─── Auth gate (same pattern as mortgage-chat) ───
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
+    const admin = createClient(supabaseUrl, serviceRoleKey);
+
+    let authorized = false;
+    const authHeader = req.headers.get("Authorization");
+    if (authHeader?.startsWith("Bearer ")) {
+      const token = authHeader.replace("Bearer ", "");
+      if (token && token !== anonKey) {
+        const userClient = createClient(supabaseUrl, anonKey, {
+          global: { headers: { Authorization: authHeader } },
+        });
+        const { data, error } = await userClient.auth.getClaims(token);
+        if (!error && data?.claims?.sub) authorized = true;
+      }
+    }
+    if (!authorized && typeof share_token === "string" && share_token.length > 0) {
+      const { data: op } = await admin
+        .from("operations")
+        .select("id")
+        .eq("share_token", share_token)
+        .eq("is_published", true)
+        .is("deleted_at", null)
+        .maybeSingle();
+      if (op) authorized = true;
+    }
+    if (!authorized) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     if (!pdf_base64 && !text_content) {
       return new Response(JSON.stringify({ error: "pdf_base64 or text_content is required" }), {
         status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // ─── Payload size limits to prevent cost-explosion abuse ───
+    if (typeof pdf_base64 === "string" && pdf_base64.length > 7_000_000) {
+      // ~5 MB binary
+      return new Response(JSON.stringify({ error: "PDF demasiado grande (máx 5 MB)" }), {
+        status: 413,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    if (typeof text_content === "string" && text_content.length > 50_000) {
+      return new Response(JSON.stringify({ error: "Texto demasiado largo" }), {
+        status: 413,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
