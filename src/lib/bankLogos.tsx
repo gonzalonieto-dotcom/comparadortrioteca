@@ -19,6 +19,8 @@ export const BANK_LOGOS: Record<string, string> = {
   "Laboral Kutxa": "https://www.google.com/s2/favicons?domain=laboralkutxa.com&sz=64",
   "Caixa Popular": "https://www.google.com/s2/favicons?domain=caixapopular.es&sz=64",
   MyInvestor: "https://www.google.com/s2/favicons?domain=myinvestor.es&sz=64",
+  "Caixa Rural de Aragón": "https://www.google.com/s2/favicons?domain=cajaruraldearagon.com&sz=64",
+  "Caixa Rural de Aragon": "https://www.google.com/s2/favicons?domain=cajaruraldearagon.com&sz=64",
 };
 
 interface BankLogoProps {
