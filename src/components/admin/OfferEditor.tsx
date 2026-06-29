@@ -32,6 +32,7 @@ export const BANK_PRESETS: Record<string, { color: string }> = {
   "Laboral Kutxa": { color: "hsl(15, 75%, 45%)" },
   "Caixa Popular": { color: "hsl(120, 50%, 35%)" },
   MyInvestor: { color: "hsl(170, 60%, 40%)" },
+  "Caixa Rural de Aragón": { color: "hsl(45, 85%, 45%)" },
 };
 
 export interface OfferFormData {
