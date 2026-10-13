@@ -90,7 +90,7 @@ const UserManagement = () => {
       if (res.error) throw new Error(res.error.message);
       if (res.data?.error) throw new Error(res.data.error);
 
-      toast.success("Gestor creado correctamente");
+      toast.success(res.data?.reused ? "El usuario ya existía: se actualizó su contraseña y roles" : "Gestor creado correctamente");
       setNewEmail("");
       setNewPassword("");
       setNewRoles(["gestor"]);

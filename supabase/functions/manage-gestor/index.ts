@@ -51,15 +51,37 @@ Deno.serve(async (req) => {
         return new Response(JSON.stringify({ error: "Email y contraseña requeridos" }), { status: 400, headers: corsHeaders });
       }
 
+      const normalizedEmail = String(email).trim().toLowerCase();
+      let userId: string | null = null;
+      let reused = false;
+
       // Create user via admin API
       const { data: newUser, error: createError } = await adminClient.auth.admin.createUser({
-        email,
+        email: normalizedEmail,
         password,
         email_confirm: true,
       });
 
       if (createError) {
-        return new Response(JSON.stringify({ error: createError.message }), { status: 400, headers: corsHeaders });
+        const alreadyExists = /already been registered|already exists/i.test(createError.message);
+        if (!alreadyExists) {
+          return new Response(JSON.stringify({ error: createError.message }), { status: 400, headers: corsHeaders });
+        }
+        // Find the existing account and reuse it (update password, assign roles)
+        for (let page = 1; page <= 20 && !userId; page++) {
+          const { data: list, error: listErr } = await adminClient.auth.admin.listUsers({ page, perPage: 200 });
+          if (listErr) break;
+          const found = list.users.find((u) => (u.email ?? "").toLowerCase() === normalizedEmail);
+          if (found) userId = found.id;
+          if (list.users.length < 200) break;
+        }
+        if (!userId) {
+          return new Response(JSON.stringify({ error: "Ya existe un usuario con este email" }), { status: 400, headers: corsHeaders });
+        }
+        await adminClient.auth.admin.updateUserById(userId, { password, email_confirm: true });
+        reused = true;
+      } else {
+        userId = newUser.user.id;
       }
 
       // Assign requested roles (default to gestor)
@@ -68,11 +90,12 @@ Deno.serve(async (req) => {
         ? roles.filter((r: string) => validRoles.includes(r))
         : ["gestor"];
       const uniqueRoles = Array.from(new Set(requestedRoles));
+      await adminClient.from("user_roles").delete().eq("user_id", userId);
       await adminClient
         .from("user_roles")
-        .insert(uniqueRoles.map((role) => ({ user_id: newUser.user.id, role })));
+        .insert(uniqueRoles.map((role) => ({ user_id: userId, role })));
 
-      return new Response(JSON.stringify({ success: true, user_id: newUser.user.id }), {
+      return new Response(JSON.stringify({ success: true, user_id: userId, reused }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
